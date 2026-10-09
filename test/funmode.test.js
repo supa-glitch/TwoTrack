@@ -42,7 +42,7 @@ test('rewriteProblem retries once, then falls back to the original', async () =>
     'soccer',
     quietLog,
   );
-  assert.deepEqual(broken, { ok: false, reason: 'unavailable' });
+  assert.deepEqual(broken, { ok: false, reason: 'unavailable', detail: 'network down' });
 });
 
 test('cleanInterest trims and strips markup', () => {
@@ -102,7 +102,7 @@ test('a refusal becomes an error, which shows the original problem', async () =>
   const { client } = fakeClient(message([], 'refusal'));
   const rewrite = createClaudeRewriter({ client });
   const result = await rewriteProblem(rewrite, '2x + 3 = 11', 'soccer', quietLog);
-  assert.deepEqual(result, { ok: false, reason: 'unavailable' });
+  assert.deepEqual(result, { ok: false, reason: 'unavailable', detail: 'Claude declined to rewrite this problem.' });
 });
 
 function gatewayClient(handle) {
@@ -154,14 +154,22 @@ test('the AI Gateway rewriter finds a model the gateway accepts and keeps using 
 
 test('the AI Gateway rewriter fails cleanly without a token or on an auth error', async () => {
   const noToken = createGatewayRewriter({ getToken: async () => undefined });
-  assert.deepEqual(await rewriteProblem(noToken, '2x + 3 = 11', 'soccer', quietLog), { ok: false, reason: 'unavailable' });
+  assert.deepEqual(await rewriteProblem(noToken, '2x + 3 = 11', 'soccer', quietLog), {
+    ok: false,
+    reason: 'unavailable',
+    detail: 'No AI Gateway credentials on this deployment.',
+  });
 
   const { createClient, requests } = gatewayClient(() => ({
     status: 401,
     body: { type: 'error', error: { type: 'authentication_error', message: 'bad token' } },
   }));
   const denied = createGatewayRewriter({ getToken: async () => 't', createClient });
-  assert.deepEqual(await rewriteProblem(denied, '2x + 3 = 11', 'soccer', quietLog), { ok: false, reason: 'unavailable' });
+  assert.deepEqual(await rewriteProblem(denied, '2x + 3 = 11', 'soccer', quietLog), {
+    ok: false,
+    reason: 'unavailable',
+    detail: 'HTTP 401: bad token',
+  });
   assert.equal(requests.length, 1, 'an auth error is not retried with other models');
 });
 
@@ -180,4 +188,56 @@ test('an Anthropic key saved as AI_GATEWAY_API_KEY is used as an Anthropic key',
   // ANTHROPIC_API_KEY wins if both are set; a real gateway key stays on the gateway.
   assert.equal(funModeSettings({ ANTHROPIC_API_KEY: 'sk-ant-1', AI_GATEWAY_API_KEY: 'sk-ant-2' }).apiKey, 'sk-ant-1');
   assert.equal(funModeSettings({ VERCEL: '1', AI_GATEWAY_API_KEY: 'vck_123' }).provider, 'gateway');
+});
+
+test('a failed rewrite says why, in words a teacher can act on', async () => {
+  const denied = new Anthropic({
+    apiKey: 'bad',
+    baseURL: 'http://claude.test',
+    maxRetries: 0,
+    fetch: async () =>
+      new Response(JSON.stringify({ type: 'error', error: { type: 'authentication_error', message: 'invalid x-api-key' } }), {
+        status: 401,
+        headers: { 'content-type': 'application/json' },
+      }),
+  });
+  const result = await rewriteProblem(createClaudeRewriter({ client: denied }), '2x + 3 = 11', 'soccer', quietLog);
+  assert.deepEqual(result, { ok: false, reason: 'unavailable', detail: 'HTTP 401: invalid x-api-key' });
+});
+
+test('if the account turns down the fallback beta, the rewriter retries without it', async () => {
+  const requests = [];
+  const client = new Anthropic({
+    apiKey: 'k',
+    baseURL: 'http://claude.test',
+    maxRetries: 0,
+    fetch: async (url, init) => {
+      const body = JSON.parse(init.body);
+      requests.push(body);
+      if (body.fallbacks) {
+        return new Response(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: 'fallbacks: not available' } }), {
+          status: 400,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify(message([{ type: 'text', text: 'Court time: 2x + 3 = 11' }])), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    },
+  });
+  const rewrite = createClaudeRewriter({ client });
+  assert.equal(await rewrite({ problem: '2x + 3 = 11', interest: 'basketball' }), 'Court time: 2x + 3 = 11');
+  assert.deepEqual(requests.map((r) => Boolean(r.fallbacks)), [true, false]);
+  assert.deepEqual(requests[1].output_config, { effort: 'low' });
+  // From then on it goes straight to the plain request.
+  await rewrite({ problem: '2x + 3 = 11', interest: 'basketball' });
+  assert.deepEqual(requests.map((r) => Boolean(r.fallbacks)), [true, false, false]);
+});
+
+test('keys pasted with spaces or quotes still work', () => {
+  assert.equal(funModeSettings({ ANTHROPIC_API_KEY: '  sk-ant-abc \n' }).apiKey, 'sk-ant-abc');
+  const quoted = funModeSettings({ VERCEL: '1', AI_GATEWAY_API_KEY: ' "sk-ant-xyz" ' });
+  assert.deepEqual([quoted.provider, quoted.apiKey], ['anthropic', 'sk-ant-xyz']);
+  assert.equal(funModeSettings({ VERCEL: '1', ANTHROPIC_API_KEY: '   ' }).provider, 'gateway');
 });

@@ -74,19 +74,34 @@ function rewriteText(response) {
  */
 export function createClaudeRewriter({ model = process.env.FUN_MODE_MODEL || DEFAULT_MODEL, apiKey, client } = {}) {
   let anthropic = client;
+  // If the account turns down the refusal-fallback beta, use plain requests
+  // from then on.
+  let plain = false;
   return async ({ problem, interest }) => {
     // Short timeout and one retry: a group is waiting at the screen. With no
     // apiKey given, the SDK reads ANTHROPIC_API_KEY itself.
     anthropic ||= new Anthropic({ apiKey, timeout: 30_000, maxRetries: 1 });
-    const response = await anthropic.beta.messages.create({
+    const request = {
       model,
       max_tokens: 4000,
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
       output_config: { effort: 'low' },
       system: SYSTEM_PROMPT,
       messages: [userMessage(problem, interest)],
-    });
+    };
+    if (!plain) {
+      try {
+        const response = await anthropic.beta.messages.create({
+          ...request,
+          betas: ['server-side-fallback-2026-07-01'],
+          fallbacks: 'default',
+        });
+        return rewriteText(response);
+      } catch (err) {
+        if (!(err instanceof Anthropic.BadRequestError)) throw err;
+      }
+    }
+    const response = await anthropic.messages.create(request);
+    plain = true;
     return rewriteText(response);
   };
 }
@@ -146,15 +161,23 @@ export function createGatewayRewriter({ getToken, model, createClient } = {}) {
  * Rewrite a problem, checking the numbers. Tries twice, then gives up.
  * @returns {Promise<{ ok: true, text: string } | { ok: false, reason: string }>}
  */
+/** A short reason a teacher can act on, e.g. "HTTP 401: invalid x-api-key". */
+export function describeError(err) {
+  if (err instanceof Anthropic.APIConnectionTimeoutError) return 'Timed out waiting for Claude.';
+  if (err instanceof Anthropic.APIConnectionError) return 'Couldn’t connect to Claude.';
+  if (err instanceof Anthropic.APIError && err.status) return `HTTP ${err.status}: ${err.error?.error?.message || err.message}`;
+  return err?.message || String(err);
+}
+
 export async function rewriteProblem(rewriter, problem, interest, log = console) {
   for (let attempt = 1; attempt <= 2; attempt++) {
     let text;
     try {
       text = await rewriter({ problem, interest });
     } catch (err) {
-      const status = err instanceof Anthropic.APIError ? ` (HTTP ${err.status})` : '';
-      log.warn(`Fun Mode rewrite failed${status}: ${err.message}`);
-      return { ok: false, reason: 'unavailable' };
+      const detail = describeError(err);
+      log.warn(`Fun Mode rewrite failed: ${detail}`);
+      return { ok: false, reason: 'unavailable', detail };
     }
     if (!text || text.length > 800) continue;
     const check = sameNumbers(problem, text);

@@ -16,22 +16,33 @@ import { createClaudeRewriter, createGatewayRewriter, DEFAULT_MODEL } from './fu
  * An Anthropic key (sk-ant-...) saved as AI_GATEWAY_API_KEY by mistake is
  * still used as an Anthropic key, since the gateway would reject it.
  */
+// Keys pasted into a dashboard often pick up spaces or quotes.
+const cleanKey = (value) =>
+  String(value ?? '')
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    .trim() || undefined;
+
 export function funModeSettings(env = process.env) {
   const setting = (env.FUN_MODE || '').toLowerCase();
   if (setting === 'off') return { on: false, provider: null, model: null };
-  const misplacedKey = /^sk-ant-/.test(env.AI_GATEWAY_API_KEY || '') ? env.AI_GATEWAY_API_KEY : undefined;
-  const apiKey = env.ANTHROPIC_API_KEY || misplacedKey;
+  const gatewayKey = cleanKey(env.AI_GATEWAY_API_KEY);
+  const misplacedKey = gatewayKey?.startsWith('sk-ant-') ? gatewayKey : undefined;
+  const apiKey = cleanKey(env.ANTHROPIC_API_KEY) || misplacedKey;
   if (setting === 'on' || apiKey || env.ANTHROPIC_AUTH_TOKEN) {
     return { on: true, provider: 'anthropic', model: env.FUN_MODE_MODEL || DEFAULT_MODEL, apiKey };
   }
-  if (env.AI_GATEWAY_API_KEY || env.VERCEL === '1') {
+  if (gatewayKey || env.VERCEL === '1') {
     return { on: true, provider: 'gateway', model: env.FUN_MODE_MODEL || null };
   }
   return { on: false, provider: null, model: null };
 }
 
+const PROVIDER_LABELS = { anthropic: 'Anthropic API', gateway: 'Vercel AI Gateway' };
+
 async function gatewayToken(env) {
-  if (env.AI_GATEWAY_API_KEY) return env.AI_GATEWAY_API_KEY;
+  const key = cleanKey(env.AI_GATEWAY_API_KEY);
+  if (key) return key;
   try {
     return await getVercelOidcToken();
   } catch {
@@ -44,7 +55,7 @@ export function createConfiguredApp(env = process.env) {
   let rewriter = null;
   if (fun.provider === 'anthropic') rewriter = createClaudeRewriter({ model: fun.model, apiKey: fun.apiKey });
   if (fun.provider === 'gateway') rewriter = createGatewayRewriter({ getToken: () => gatewayToken(env), model: fun.model || undefined });
-  return { app: createApp({ rewriter }), fun };
+  return { app: createApp({ rewriter, funModeLabel: PROVIDER_LABELS[fun.provider] || null }), fun };
 }
 
 /**

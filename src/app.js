@@ -112,7 +112,7 @@ function sameSecret(given, expected) {
  * @param {() => number} [options.now]
  * @param {Console} [options.log]
  */
-export function createApp({ rewriter = null, now = () => Date.now(), log = console } = {}) {
+export function createApp({ rewriter = null, funModeLabel = null, now = () => Date.now(), log = console } = {}) {
   /** @type {Map<string, ReturnType<typeof createClass>>} */
   const classes = new Map();
   const funModeAvailable = Boolean(rewriter);
@@ -156,10 +156,23 @@ export function createApp({ rewriter = null, now = () => Date.now(), log = conso
       group.funCalls++;
       pending = rewriteProblem(rewriter, problem.text, group.interest, log);
       cls.funCache.set(key, pending);
-      // Don't keep a failure forever; let the next request try again.
-      pending.then((r) => !r.ok && r.reason === 'unavailable' && cls.funCache.delete(key));
+      pending.then((r) => {
+        if (r.ok) cls.funError = null;
+        if (r.reason !== 'unavailable') return;
+        // Tell the teacher why, and let the next request try again.
+        cls.funError = { detail: r.detail, at: now() };
+        cls.funCache.delete(key);
+      });
     }
     return pending;
+  }
+
+  /** The board, plus whether Fun Mode is reaching Claude. */
+  function teacherView(cls) {
+    return {
+      ...boardView(cls, now()),
+      funMode: { label: funModeLabel, error: cls.funError ?? null },
+    };
   }
 
   function sweep() {
@@ -224,42 +237,42 @@ export function createApp({ rewriter = null, now = () => Date.now(), log = conso
   route('GET', /^\/api\/classes\/(\w+)\/board$/, (req, [code]) => {
     const cls = getClass(code);
     asTeacher(req, cls);
-    return boardView(cls, now());
+    return teacherView(cls);
   });
 
   route('POST', /^\/api\/classes\/(\w+)\/exit-ticket$/, (req, [code]) => {
     const cls = getClass(code);
     asTeacher(req, cls);
     openExitTicket(cls, now());
-    return boardView(cls, now());
+    return teacherView(cls);
   });
 
   route('POST', /^\/api\/classes\/(\w+)\/settings$/, async (req, [code]) => {
     const cls = getClass(code);
     asTeacher(req, cls);
     updateSettings(cls, await readJson(req));
-    return boardView(cls, now());
+    return teacherView(cls);
   });
 
   route('POST', /^\/api\/classes\/(\w+)\/groups\/(\d+)\/ack$/, (req, [code, id]) => {
     const cls = getClass(code);
     asTeacher(req, cls);
     acknowledge(findGroup(cls, id), now());
-    return boardView(cls, now());
+    return teacherView(cls);
   });
 
   route('POST', /^\/api\/classes\/(\w+)\/groups\/(\d+)\/skip$/, (req, [code, id]) => {
     const cls = getClass(code);
     asTeacher(req, cls);
     skipProblem(cls, findGroup(cls, id), now());
-    return boardView(cls, now());
+    return teacherView(cls);
   });
 
   route('DELETE', /^\/api\/classes\/(\w+)\/groups\/(\d+)$/, (req, [code, id]) => {
     const cls = getClass(code);
     asTeacher(req, cls);
     removeGroup(cls, Number(id));
-    return boardView(cls, now());
+    return teacherView(cls);
   });
 
   route('GET', /^\/api\/classes\/(\w+)\/results\.csv$/, (req, [code]) => {
@@ -323,7 +336,8 @@ export function createApp({ rewriter = null, now = () => Date.now(), log = conso
     const cls = getClass(code);
     const group = asGroup(req, cls);
     const problem = currentProblem(cls, group);
-    const result = await funText(cls, group);
+    // The error detail is for the teacher's board, not the students.
+    const { detail, ...result } = await funText(cls, group);
     // Say which problem this is for, in case the group moved on meanwhile.
     return { ...result, activityIndex: group.activityIndex, problemIndex: group.problemIndex, label: problem?.label };
   });

@@ -11,6 +11,7 @@ const rewrites = [];
 async function fakeRewriter({ problem, interest }) {
   rewrites.push({ problem, interest });
   if (interest === 'cheat') return `In ${interest}, the answer is 42. ${problem}`;
+  if (interest === 'broken') throw new Error('HTTP 401: invalid x-api-key');
   return `${interest} edition: ${problem}`;
 }
 
@@ -193,7 +194,7 @@ test('a full lesson: join, answer, flags, skip, exit ticket, results, clear', as
 });
 
 test('Fun Mode rewrites keep the teacher’s numbers, or fall back to the original', async () => {
-  const { code } = await newClass();
+  const { code, teacherKey } = await newClass();
   const t = (await call('POST', `/api/classes/${code}/join`, { body: { name: 'Hawks' } })).body.token;
 
   let res = await call('GET', `/api/classes/${code}/group/fun-text`, { group: t });
@@ -218,6 +219,20 @@ test('Fun Mode rewrites keep the teacher’s numbers, or fall back to the origin
   await call('POST', `/api/classes/${code}/group/interest`, { group: t, body: { interest: 'cheat' } });
   res = await call('GET', `/api/classes/${code}/group/fun-text`, { group: t });
   assert.deepEqual([res.body.ok, res.body.reason], [false, 'numbers']);
+
+  // When Claude can't be reached, the board says why; the group only sees that it failed.
+  await call('POST', `/api/classes/${code}/group/interest`, { group: t, body: { interest: 'broken' } });
+  res = await call('GET', `/api/classes/${code}/group/fun-text`, { group: t });
+  assert.deepEqual([res.body.ok, res.body.reason, res.body.detail], [false, 'unavailable', undefined]);
+  let board = (await call('GET', `/api/classes/${code}/board`, { teacher: teacherKey })).body;
+  assert.equal(board.funMode.error.detail, 'HTTP 401: invalid x-api-key');
+  // The next rewrite that reaches Claude clears it.
+  await call('POST', `/api/classes/${code}/group/interest`, { group: t, body: { interest: 'Hockey' } });
+  res = await call('GET', `/api/classes/${code}/group/fun-text`, { group: t });
+  assert.equal(res.body.ok, true);
+  board = (await call('GET', `/api/classes/${code}/board`, { teacher: teacherKey })).body;
+  assert.equal(board.funMode.error, null);
+  await call('POST', `/api/classes/${code}/group/interest`, { group: t, body: { interest: 'cheat' } });
 
   // Fun Mode never changes what counts as right.
   res = await call('POST', `/api/classes/${code}/group/answer`, { group: t, body: { activityIndex: 0, problemIndex: 1, answer: '42' } });
