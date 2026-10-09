@@ -64,7 +64,30 @@ function send(res, status, body, headers = {}) {
   res.end(isJson ? JSON.stringify(body) : body);
 }
 
+function parseJson(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new HttpError(400, 'Couldn’t read that request.');
+  }
+}
+
 async function readJson(req) {
+  // Vercel reads the body before the function runs and offers it as
+  // req.body; plain Node leaves it on the stream.
+  let early;
+  try {
+    early = req.body;
+  } catch {
+    throw new HttpError(400, 'Couldn’t read that request.');
+  }
+  if (early !== undefined && early !== null) {
+    const text = Buffer.isBuffer(early) ? early.toString('utf8') : typeof early === 'string' ? early : null;
+    if (text === null) return early;
+    if (text.length > MAX_BODY) throw new HttpError(413, 'That’s too much text. Try a shorter worksheet.');
+    return text ? parseJson(text) : {};
+  }
+
   let size = 0;
   const chunks = [];
   for await (const chunk of req) {
@@ -73,11 +96,7 @@ async function readJson(req) {
     chunks.push(chunk);
   }
   if (!chunks.length) return {};
-  try {
-    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
-  } catch {
-    throw new HttpError(400, 'Couldn’t read that request.');
-  }
+  return parseJson(Buffer.concat(chunks).toString('utf8'));
 }
 
 function sameSecret(given, expected) {
