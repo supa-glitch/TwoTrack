@@ -45,6 +45,15 @@ The class computers need to reach it, so for the real lesson run it on any host 
 - **Free hosting tiers often go to sleep** when nobody uses them for a while, and that wipes memory too. Start the class at the start of the period, not at lunch. The setup page remembers the worksheet in the teacher's browser, so restarting a class takes one click.
 - **Try it on one of the actual class computers before the lesson.** School networks block a lot of sites.
 
+### Hosting on Vercel
+
+A demo is live at **https://twotrack-ten.vercel.app**.
+
+`vercel.json` serves `public/` as static pages and sends every `/api/...` request to one function, `api/index.js`, which runs the same app as `npm start`.
+
+- **Fine for trying it out, not yet for a real lesson.** Classes live in the function's memory, and Vercel doesn't keep one copy of the function running. It shuts down idle copies, starts fresh ones on every deploy, and can run several at once when busy. When that happens, a class vanishes ("No class with that code"). Before the real test, either move class state into a shared store (Upstash Redis from the Vercel Marketplace has a free tier), or run `npm start` on an always-on host.
+- **To turn on Fun Mode**, add `ANTHROPIC_API_KEY` under the Vercel project's Settings → Environment Variables, then redeploy.
+
 ## In class
 
 **Teacher**
