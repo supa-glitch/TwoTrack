@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Live Board · TwoTrack</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script type="module" src="/js/board.js"></script>
+  </head>
+  <body>
+    <!-- Sign in (phone, or a different computer) -->
+    <main id="signin-view" class="wrap narrow" hidden>
+      <div class="stack join-stack">
+        <a class="brand brand-lg" href="/">TwoTrack</a>
+        <form id="signin-form" class="card stack" autocomplete="off">
+          <h1>Open your live board</h1>
+          <p class="muted m0">Use the class code and the 6-digit board PIN from the computer you set up the lesson on.</p>
+          <div>
+            <label for="signin-code">Class code</label>
+            <input id="signin-code" class="code-input" type="text" maxlength="8" required spellcheck="false" autocapitalize="characters" />
+          </div>
+          <div>
+            <label for="signin-pin">Board PIN</label>
+            <input id="signin-pin" type="text" inputmode="numeric" maxlength="6" required />
+          </div>
+          <p id="signin-error" class="error" role="alert" hidden></p>
+          <button class="big" type="submit">Open board</button>
+        </form>
+        <p class="muted small">No class yet? <a href="/teacher">Set up a lesson</a>.</p>
+      </div>
+    </main>
+
+    <!-- Class ended -->
+    <main id="ended-view" class="wrap narrow" hidden>
+      <div class="card stack join-stack">
+        <h1 id="ended-title">This class has ended</h1>
+        <p id="ended-text" class="muted">Its groups, names and exit tickets have been deleted.</p>
+        <div class="row">
+          <a class="button" href="/teacher">Set up another lesson</a>
+        </div>
+      </div>
+    </main>
+
+    <!-- The board -->
+    <div id="board-view" hidden>
+      <header class="topbar">
+        <div class="row">
+          <span class="brand">TwoTrack</span>
+          <strong id="lesson-title"></strong>
+        </div>
+        <div class="row no-print">
+          <button id="show-code" class="secondary" type="button">Show code on smartboard</button>
+          <button id="phone" class="secondary" type="button">Open on your phone</button>
+          <button id="settings" class="secondary" type="button">Settings</button>
+        </div>
+      </header>
+
+      <main class="wrap stack">
+        <p id="connection" class="notice warn" role="status" hidden></p>
+
+        <div class="card row spread">
+          <div>
+            <div class="muted small">Students go to <strong id="join-url"></strong> and type</div>
+            <div class="class-code" id="class-code"></div>
+          </div>
+          <div class="row no-print">
+            <button id="open-exit" class="big" type="button">Start the exit ticket for everyone</button>
+            <span id="exit-open-note" class="status exit" hidden>Exit ticket is open</span>
+          </div>
+        </div>
+
+        <section class="summary" aria-label="Class summary">
+          <div class="stat"><div class="value" id="stat-groups"></div><div class="label">groups joined</div></div>
+          <div class="stat" id="stat-need-box"><div class="value" id="stat-need"></div><div class="label" id="stat-need-label">need you</div></div>
+          <div class="stat"><div class="value" id="stat-progress"></div><div class="label">of all problems done</div></div>
+          <div class="stat"><div class="value" id="stat-exit"></div><div class="label">exit tickets in</div></div>
+        </section>
+
+        <p id="need-list" class="notice warn" role="status" hidden></p>
+
+        <section class="groups" id="groups" aria-label="Groups"></section>
+
+        <section id="results" class="card stack" hidden>
+          <div class="row spread">
+            <h2 class="m0">Exit tickets</h2>
+            <div class="row no-print">
+              <button id="download" class="secondary" type="button">Download results</button>
+              <button id="print" class="secondary" type="button">Print</button>
+              <button id="clear" class="danger" type="button">Clear class data</button>
+            </div>
+          </div>
+          <p id="cleared-hint" class="notice" hidden>Results downloaded. Once you have them, clear the class data so no student names are kept.</p>
+          <p id="no-results" class="muted m0">No exit tickets handed in yet.</p>
+          <div class="table-scroll"><table id="results-table"></table></div>
+        </section>
+
+        <div class="row no-print" id="clear-row">
+          <button id="clear-bottom" class="quiet-button" type="button">End class and clear its data</button>
+        </div>
+      </main>
+    </div>
+
+    <dialog id="settings-dialog">
+      <form method="dialog" class="stack" id="settings-form">
+        <h2>Flags</h2>
+        <div>
+          <label for="quiet-minutes">Flag a group as quiet after this many minutes with no answer</label>
+          <input id="quiet-minutes" type="number" min="1" max="15" step="0.5" class="groups-input" />
+        </div>
+        <div>
+          <label for="stuck-tries">Flag a group as stuck after this many wrong tries on one problem</label>
+          <input id="stuck-tries" type="number" min="2" max="10" class="groups-input" />
+        </div>
+        <div class="row">
+          <button value="save" type="submit">Save</button>
+          <button value="cancel" type="submit" class="secondary" formnovalidate>Cancel</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="phone-dialog">
+      <div class="stack">
+        <h2>Take the board with you</h2>
+        <p class="m0">On your phone, go to <strong id="phone-url"></strong> and enter:</p>
+        <p class="m0">Class code <strong id="phone-code" class="class-code"></strong></p>
+        <p class="m0">Board PIN <strong id="phone-pin" class="class-code"></strong></p>
+        <p class="muted small m0">Keep the PIN to yourself. Anyone with it can see the board and exit ticket results.</p>
+        <form method="dialog"><button type="submit">Done</button></form>
+      </div>
+    </dialog>
+  </body>
+</html>

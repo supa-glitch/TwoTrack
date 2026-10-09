@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TwoTrack</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script type="module" src="/js/group.js"></script>
+  </head>
+  <body>
+    <!-- Join -->
+    <main id="join-view" class="wrap narrow" hidden>
+      <div class="stack join-stack">
+        <div>
+          <a class="brand brand-lg" href="/">TwoTrack</a>
+        </div>
+        <form id="join-form" class="card stack" autocomplete="off">
+          <h1>Join your class</h1>
+          <div>
+            <label for="join-code">Class code <span class="hint">— it’s on the board</span></label>
+            <input id="join-code" class="code-input" type="text" maxlength="8" required inputmode="text" autocapitalize="characters" spellcheck="false" />
+          </div>
+          <div>
+            <label for="join-name">Group name</label>
+            <input id="join-name" type="text" maxlength="24" required spellcheck="false" />
+            <p class="hint mt-xs">Use the same name if you need to join again. You’ll pick up where you left off.</p>
+          </div>
+          <p id="join-error" class="error" role="alert" hidden></p>
+          <button class="big" type="submit">Join</button>
+        </form>
+        <p class="muted small">Teacher? <a href="/teacher">Set up a lesson</a> or <a href="/board">open your board</a>.</p>
+      </div>
+    </main>
+
+    <!-- Working -->
+    <div id="work-view" hidden>
+      <header class="topbar">
+        <div class="row">
+          <span class="brand">TwoTrack</span>
+          <span class="who" id="group-name"></span>
+        </div>
+        <div class="row">
+          <span class="muted small" id="class-title"></span>
+          <button id="leave" class="quiet-button" type="button">Leave</button>
+        </div>
+      </header>
+
+      <main class="wrap narrow stack">
+        <p id="connection" class="notice warn" role="status" hidden></p>
+
+        <!-- Activities -->
+        <section id="activity-section" class="stack" hidden>
+          <ol class="steps" id="steps" aria-label="Activities"></ol>
+
+          <div id="activity-done" class="card celebrate stack" hidden>
+            <div class="emoji" aria-hidden="true">🎉</div>
+            <h2 id="activity-done-title"></h2>
+            <p id="activity-done-next" class="muted"></p>
+            <div><button id="activity-continue" class="big" type="button">Keep going</button></div>
+          </div>
+
+          <div id="problem-card" class="card stack">
+            <div class="row spread">
+              <div>
+                <h2 id="activity-title" class="m0"></h2>
+                <p id="activity-directions" class="muted small directions"></p>
+              </div>
+              <button id="fun-toggle" class="secondary fun-toggle" type="button" aria-pressed="false" hidden>🎮 Fun Mode</button>
+            </div>
+
+            <div class="row spread">
+              <div class="dots" id="dots" aria-hidden="true"></div>
+              <span class="muted small" id="problem-count"></span>
+            </div>
+
+            <p id="moved-on" class="notice" hidden>Your teacher moved you on to the next problem.</p>
+
+            <div id="fun-story" class="fun-story" hidden aria-live="polite">
+              <div id="fun-text"></div>
+              <div class="original"><strong>The math:</strong> <span id="fun-original"></span></div>
+              <div class="row mt-sm">
+                <button id="change-interest" class="quiet-button small" type="button"></button>
+              </div>
+            </div>
+            <div id="problem-text" class="problem-text"></div>
+
+            <form id="answer-form" class="stack" autocomplete="off">
+              <label for="answer" class="hint m0">Your group’s answer</label>
+              <div class="answer-row">
+                <input id="answer" type="text" maxlength="200" spellcheck="false" autocapitalize="off" />
+                <button id="check" class="big" type="submit">Check</button>
+              </div>
+            </form>
+            <div id="feedback" class="feedback" role="status" aria-live="polite"></div>
+            <p id="stuck-note" class="notice warn" hidden>Your teacher can see you’re stuck and will come help. Keep trying different ideas together.</p>
+          </div>
+        </section>
+
+        <!-- Exit ticket -->
+        <section id="exit-section" class="stack" hidden>
+          <div id="exit-intro" class="card stack">
+            <h1>Exit ticket time</h1>
+            <p>Everyone does this <strong>on their own</strong>. Take turns on this computer. No helping!</p>
+            <form id="exit-name-form" class="stack" autocomplete="off">
+              <div>
+                <label for="exit-name">Your first name</label>
+                <input id="exit-name" type="text" maxlength="24" required spellcheck="false" />
+              </div>
+              <button class="big" type="submit">Start my exit ticket</button>
+            </form>
+            <p id="exit-submitted" class="muted small" hidden></p>
+            <div><button id="exit-all-done" class="secondary" type="button" hidden>Everyone in our group is done</button></div>
+          </div>
+
+          <form id="exit-form" class="card stack" autocomplete="off" hidden>
+            <h2 id="exit-form-title"></h2>
+            <div id="exit-problems"></div>
+            <p id="exit-error" class="error" role="alert" hidden></p>
+            <button class="big" type="submit">Hand it in</button>
+          </form>
+
+          <div id="exit-thanks" class="card celebrate stack" hidden>
+            <div class="emoji" aria-hidden="true">✅</div>
+            <h2 id="exit-thanks-title"></h2>
+            <p>Pass the computer to the next person in your group.</p>
+            <div class="row center">
+              <button id="exit-next" class="big" type="button">Next person</button>
+              <button id="exit-finish" class="secondary big" type="button">Everyone is done</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Done -->
+        <section id="done-section" class="card celebrate stack" hidden>
+          <div class="emoji" aria-hidden="true">🏁</div>
+          <h1>Your group is finished</h1>
+          <p class="muted">Great work today. Wait for your teacher’s instructions.</p>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="interest-dialog">
+      <form id="interest-form" method="dialog" class="stack">
+        <h2>What’s your group into?</h2>
+        <p class="muted">Fun Mode rewrites each problem around it. The numbers and the answer stay exactly the same.</p>
+        <div class="chip-row" id="interest-ideas"></div>
+        <div>
+          <label for="interest">Pick one or type your own</label>
+          <input id="interest" type="text" maxlength="40" spellcheck="true" />
+        </div>
+        <div class="row">
+          <button type="submit" value="save">Turn on Fun Mode</button>
+          <button type="submit" value="cancel" class="secondary" formnovalidate>Cancel</button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>

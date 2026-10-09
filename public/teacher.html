@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Set Up Lesson · TwoTrack</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script type="module" src="/js/setup.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/">TwoTrack</a>
+      <a href="/board" class="small">Open a class you already started →</a>
+    </header>
+
+    <main class="wrap stack">
+      <div>
+        <h1>Set up today’s lesson</h1>
+        <p class="muted m0">Paste your worksheet and exit ticket with the answer key. Students never see the answers.</p>
+      </div>
+
+      <p id="resume" class="notice" hidden></p>
+
+      <form id="setup-form" class="setup-grid" autocomplete="off">
+        <div class="card stack">
+          <div>
+            <label for="title">Lesson name <span class="hint">(optional)</span></label>
+            <input id="title" type="text" maxlength="80" placeholder="Solving two-step equations" />
+          </div>
+          <div>
+            <label for="worksheet">Worksheet <span class="hint">— activities, problems, and answers</span></label>
+            <textarea id="worksheet" rows="18" spellcheck="false" placeholder="Activity 1: Warm-up&#10;1. x + 7 = 15&#10;Answer: 8&#10;2. 5x = 35&#10;Answer: 7&#10;&#10;Activity 2: Two-step equations&#10;1. 2x + 3 = 11&#10;Answer: 4"></textarea>
+          </div>
+          <div>
+            <label for="exit-ticket">Exit ticket <span class="hint">— each student answers on their own</span></label>
+            <textarea id="exit-ticket" rows="6" spellcheck="false" placeholder="1. 6x + 2 = 26&#10;Answer: 4"></textarea>
+          </div>
+          <div class="row">
+            <div>
+              <label for="groups">How many groups?</label>
+              <input id="groups" type="number" min="1" max="16" value="6" class="groups-input" />
+            </div>
+          </div>
+          <label class="check" id="fun-allowed-row" hidden>
+            <input id="fun-allowed" type="checkbox" checked />
+            <span>Let groups use Fun Mode <span class="hint">(AI rewrites the wording around what they’re into. The numbers and answers always come from your key.)</span></span>
+          </label>
+          <details class="help">
+            <summary>How to format the worksheet</summary>
+            <div class="stack mt-sm">
+              <p class="m0">Start each activity with a line like <code>Activity 1: Warm-up</code> (or Part, Section, Station). Number each problem, and put its answer on the next line after <code>Answer:</code>.</p>
+              <pre>Activity 1: Warm-up
+Directions: Solve each equation.
+1. x + 7 = 15
+Answer: 8
+2. 3x = 21
+Answer: x = 7 | 7</pre>
+              <p class="m0">Use <code>|</code> to list more than one accepted answer. You don’t need to list every way of writing the same answer: <code>x = 7</code> and <code>7</code>, <code>1/2</code> and <code>0.5</code>, or <code>2x + 3</code> and <code>3 + 2x</code> all count as the same. Work still counts, so <code>2(x + 3)</code> is not accepted for <code>2x + 6</code>.</p>
+              <p class="m0">Already have the answers at the end? Add a line <code>Answer key</code> and then the numbered answers (you can put <code>Activity 2</code> lines in the key too).</p>
+            </div>
+          </details>
+          <p id="setup-error" class="error" role="alert" hidden></p>
+          <div class="row">
+            <button id="start" class="big" type="submit">Start class</button>
+            <button id="sample" class="secondary" type="button">Load a sample lesson</button>
+          </div>
+        </div>
+
+        <aside class="card stack" aria-live="polite">
+          <h2 class="m0">What students will get</h2>
+          <ul id="issues" class="issues" hidden></ul>
+          <div id="preview"><p class="muted">Paste your worksheet to see it here.</p></div>
+        </aside>
+      </form>
+    </main>
+  </body>
+</html>
