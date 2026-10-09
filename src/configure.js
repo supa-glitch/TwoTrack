@@ -12,12 +12,17 @@ import { createClaudeRewriter, createGatewayRewriter, DEFAULT_MODEL } from './fu
  *   `ant auth login` profile) calls Claude directly.
  * - AI_GATEWAY_API_KEY, or running on Vercel, calls Claude through Vercel's
  *   AI Gateway. On Vercel this needs no key: it uses the deployment's OIDC token.
+ *
+ * An Anthropic key (sk-ant-...) saved as AI_GATEWAY_API_KEY by mistake is
+ * still used as an Anthropic key, since the gateway would reject it.
  */
 export function funModeSettings(env = process.env) {
   const setting = (env.FUN_MODE || '').toLowerCase();
   if (setting === 'off') return { on: false, provider: null, model: null };
-  if (setting === 'on' || env.ANTHROPIC_API_KEY || env.ANTHROPIC_AUTH_TOKEN) {
-    return { on: true, provider: 'anthropic', model: env.FUN_MODE_MODEL || DEFAULT_MODEL };
+  const misplacedKey = /^sk-ant-/.test(env.AI_GATEWAY_API_KEY || '') ? env.AI_GATEWAY_API_KEY : undefined;
+  const apiKey = env.ANTHROPIC_API_KEY || misplacedKey;
+  if (setting === 'on' || apiKey || env.ANTHROPIC_AUTH_TOKEN) {
+    return { on: true, provider: 'anthropic', model: env.FUN_MODE_MODEL || DEFAULT_MODEL, apiKey };
   }
   if (env.AI_GATEWAY_API_KEY || env.VERCEL === '1') {
     return { on: true, provider: 'gateway', model: env.FUN_MODE_MODEL || null };
@@ -37,7 +42,7 @@ async function gatewayToken(env) {
 export function createConfiguredApp(env = process.env) {
   const fun = funModeSettings(env);
   let rewriter = null;
-  if (fun.provider === 'anthropic') rewriter = createClaudeRewriter({ model: fun.model });
+  if (fun.provider === 'anthropic') rewriter = createClaudeRewriter({ model: fun.model, apiKey: fun.apiKey });
   if (fun.provider === 'gateway') rewriter = createGatewayRewriter({ getToken: () => gatewayToken(env), model: fun.model || undefined });
   return { app: createApp({ rewriter }), fun };
 }

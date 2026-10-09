@@ -173,3 +173,11 @@ test('funModeSettings picks Anthropic, then the AI Gateway, then off', () => {
   assert.equal(funModeSettings({ VERCEL: '1', FUN_MODE: 'off' }).on, false);
   assert.equal(funModeSettings({ VERCEL: '1', FUN_MODE_MODEL: 'anthropic/claude-sonnet-5.5' }).model, 'anthropic/claude-sonnet-5.5');
 });
+
+test('an Anthropic key saved as AI_GATEWAY_API_KEY is used as an Anthropic key', () => {
+  const misplaced = funModeSettings({ VERCEL: '1', AI_GATEWAY_API_KEY: 'sk-ant-api03-abc' });
+  assert.deepEqual(misplaced, { on: true, provider: 'anthropic', model: 'claude-opus-5-5', apiKey: 'sk-ant-api03-abc' });
+  // ANTHROPIC_API_KEY wins if both are set; a real gateway key stays on the gateway.
+  assert.equal(funModeSettings({ ANTHROPIC_API_KEY: 'sk-ant-1', AI_GATEWAY_API_KEY: 'sk-ant-2' }).apiKey, 'sk-ant-1');
+  assert.equal(funModeSettings({ VERCEL: '1', AI_GATEWAY_API_KEY: 'vck_123' }).provider, 'gateway');
+});

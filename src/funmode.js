@@ -72,11 +72,12 @@ function rewriteText(response) {
  * Create a rewriter that calls Claude directly with an Anthropic API key.
  * @returns {(input: { problem: string, interest: string }) => Promise<string>}
  */
-export function createClaudeRewriter({ model = process.env.FUN_MODE_MODEL || DEFAULT_MODEL, client } = {}) {
+export function createClaudeRewriter({ model = process.env.FUN_MODE_MODEL || DEFAULT_MODEL, apiKey, client } = {}) {
   let anthropic = client;
   return async ({ problem, interest }) => {
-    // Short timeout and one retry: a group is waiting at the screen.
-    anthropic ||= new Anthropic({ timeout: 30_000, maxRetries: 1 });
+    // Short timeout and one retry: a group is waiting at the screen. With no
+    // apiKey given, the SDK reads ANTHROPIC_API_KEY itself.
+    anthropic ||= new Anthropic({ apiKey, timeout: 30_000, maxRetries: 1 });
     const response = await anthropic.beta.messages.create({
       model,
       max_tokens: 4000,

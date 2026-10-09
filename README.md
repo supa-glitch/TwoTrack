@@ -34,7 +34,7 @@ ANTHROPIC_API_KEY=sk-ant-... npm start
 |---|---|
 | `PORT` | Port to listen on (default 3000). |
 | `ANTHROPIC_API_KEY` | Turns on Fun Mode, calling Claude directly. |
-| `AI_GATEWAY_API_KEY` | Turns on Fun Mode through Vercel AI Gateway. Not needed on a Vercel deployment, which signs in on its own. |
+| `AI_GATEWAY_API_KEY` | Turns on Fun Mode through Vercel AI Gateway. Not needed on a Vercel deployment, which signs in on its own. An Anthropic key (`sk-ant-...`) saved here is used as `ANTHROPIC_API_KEY` instead. |
 | `FUN_MODE` | `off` to turn Fun Mode off even with a key; `on` to use other Claude credentials (for example an `ant auth login` profile). |
 | `FUN_MODE_MODEL` | Model for Fun Mode. Default `claude-opus-5-5` directly. Through the gateway, it tries `anthropic/claude-opus-5.5` and falls back to `anthropic/claude-opus-5`. |
 
@@ -53,7 +53,7 @@ A demo is live at **https://twotrack-ten.vercel.app**.
 `vercel.json` serves `public/` as static pages and sends every `/api/...` request to one function, `api/index.js`, which runs the same app as `npm start`.
 
 - **Fine for trying it out, not yet for a real lesson.** Classes live in the function's memory, and Vercel doesn't keep one copy of the function running. It shuts down idle copies, starts fresh ones on every deploy, and can run several at once when busy. When that happens, a class vanishes ("No class with that code"). Before the real test, either move class state into a shared store (Upstash Redis from the Vercel Marketplace has a free tier), or run `npm start` on an always-on host.
-- **Fun Mode works on Vercel with no setup.** It calls Claude through [Vercel AI Gateway](https://vercel.com/docs/ai-gateway), signed in with the deployment's own OIDC token, and the cost comes out of the Vercel account's AI Gateway credits. Each rewrite is a fraction of a cent. To call Anthropic directly instead, add `ANTHROPIC_API_KEY` under Settings → Environment Variables and redeploy.
+- **Fun Mode works on Vercel with no setup.** It calls Claude through [Vercel AI Gateway](https://vercel.com/docs/ai-gateway), signed in with the deployment's own OIDC token, and the cost comes out of the Vercel account's AI Gateway credits. Each rewrite is a fraction of a cent. To call Anthropic directly instead (the demo does), add `ANTHROPIC_API_KEY` under Settings → Environment Variables and redeploy. That key takes priority over the gateway.
 
 ## In class
 
