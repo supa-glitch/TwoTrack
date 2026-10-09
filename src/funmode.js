@@ -53,8 +53,23 @@ export function cleanInterest(text) {
     .slice(0, MAX_INTEREST_LENGTH);
 }
 
+const userMessage = (problem, interest) => ({
+  role: 'user',
+  content: `<problem>\n${problem}\n</problem>\n<theme>${interest}</theme>`,
+});
+
+function rewriteText(response) {
+  if (response.stop_reason === 'refusal') throw new Error('Claude declined to rewrite this problem.');
+  if (response.stop_reason === 'max_tokens') throw new Error('The rewrite was cut off.');
+  return response.content
+    .filter((block) => block.type === 'text')
+    .map((block) => block.text)
+    .join('')
+    .trim();
+}
+
 /**
- * Create a rewriter that calls Claude.
+ * Create a rewriter that calls Claude directly with an Anthropic API key.
  * @returns {(input: { problem: string, interest: string }) => Promise<string>}
  */
 export function createClaudeRewriter({ model = process.env.FUN_MODE_MODEL || DEFAULT_MODEL, client } = {}) {
@@ -69,20 +84,60 @@ export function createClaudeRewriter({ model = process.env.FUN_MODE_MODEL || DEF
       fallbacks: 'default',
       output_config: { effort: 'low' },
       system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: `<problem>\n${problem}\n</problem>\n<theme>${interest}</theme>`,
-        },
-      ],
+      messages: [userMessage(problem, interest)],
     });
-    if (response.stop_reason === 'refusal') throw new Error('Claude declined to rewrite this problem.');
-    if (response.stop_reason === 'max_tokens') throw new Error('The rewrite was cut off.');
-    return response.content
-      .filter((block) => block.type === 'text')
-      .map((block) => block.text)
-      .join('')
-      .trim();
+    return rewriteText(response);
+  };
+}
+
+export const GATEWAY_URL = 'https://ai-gateway.vercel.sh';
+
+// Claude through Vercel's AI Gateway, tried in this order until the gateway
+// accepts one. The first that works is used from then on.
+const GATEWAY_ATTEMPTS = [
+  { model: 'anthropic/claude-opus-5.5', effort: 'low' },
+  { model: 'anthropic/claude-opus-5-5', effort: 'low' },
+  { model: 'anthropic/claude-opus-5.5' },
+  { model: 'anthropic/claude-opus-5' },
+];
+
+/**
+ * Create a rewriter that calls Claude through Vercel's AI Gateway. On a
+ * Vercel deployment it signs in with the deployment's own OIDC token, so no
+ * API key is needed.
+ * @param {object} options
+ * @param {() => Promise<string | undefined>} options.getToken a fresh gateway token for each call
+ * @param {string} [options.model] a gateway model id, e.g. "anthropic/claude-opus-5.5"
+ */
+export function createGatewayRewriter({ getToken, model, createClient } = {}) {
+  const attempts = model ? [{ model, effort: 'low' }, { model }] : GATEWAY_ATTEMPTS;
+  const makeClient =
+    createClient || ((apiKey) => new Anthropic({ apiKey, baseURL: GATEWAY_URL, timeout: 30_000, maxRetries: 1 }));
+  let first = 0;
+  return async ({ problem, interest }) => {
+    const token = await getToken();
+    if (!token) throw new Error('No AI Gateway credentials on this deployment.');
+    const client = makeClient(token);
+    for (let i = first; i < attempts.length; i++) {
+      const { model: id, effort } = attempts[i];
+      try {
+        const response = await client.messages.create({
+          model: id,
+          max_tokens: 4000,
+          ...(effort && { output_config: { effort } }),
+          system: SYSTEM_PROMPT,
+          messages: [userMessage(problem, interest)],
+        });
+        first = i;
+        return rewriteText(response);
+      } catch (err) {
+        // An unknown model id or setting: try the next one. Anything else
+        // (auth, rate limit, outage) is a real failure.
+        const rejected = err instanceof Anthropic.BadRequestError || err instanceof Anthropic.NotFoundError;
+        if (!rejected || i === attempts.length - 1) throw err;
+      }
+    }
+    throw new Error('AI Gateway rejected every model.');
   };
 }
 

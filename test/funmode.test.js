@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import Anthropic from '@anthropic-ai/sdk';
-import { cleanInterest, createClaudeRewriter, numbersIn, rewriteProblem, sameNumbers } from '../src/funmode.js';
+import { cleanInterest, createClaudeRewriter, createGatewayRewriter, numbersIn, rewriteProblem, sameNumbers } from '../src/funmode.js';
+import { funModeSettings } from '../src/configure.js';
 
 const quietLog = { warn() {} };
 
@@ -102,4 +103,73 @@ test('a refusal becomes an error, which shows the original problem', async () =>
   const rewrite = createClaudeRewriter({ client });
   const result = await rewriteProblem(rewrite, '2x + 3 = 11', 'soccer', quietLog);
   assert.deepEqual(result, { ok: false, reason: 'unavailable' });
+});
+
+function gatewayClient(handle) {
+  const requests = [];
+  const createClient = (apiKey) =>
+    new Anthropic({
+      apiKey,
+      baseURL: 'http://gateway.test',
+      maxRetries: 0,
+      fetch: async (url, init) => {
+        const req = { url: String(url), headers: new Headers(init.headers), body: JSON.parse(init.body) };
+        requests.push(req);
+        const { status, body } = handle(req);
+        return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+      },
+    });
+  return { createClient, requests };
+}
+
+const notFound = { status: 404, body: { type: 'error', error: { type: 'not_found_error', message: 'Model not found' } } };
+
+test('the AI Gateway rewriter finds a model the gateway accepts and keeps using it', async () => {
+  const { createClient, requests } = gatewayClient((req) =>
+    req.body.model === 'anthropic/claude-opus-5-5'
+      ? { status: 200, body: message([{ type: 'text', text: 'Hoops: 2x + 3 = 11' }]) }
+      : notFound,
+  );
+  let tokens = 0;
+  const rewrite = createGatewayRewriter({ getToken: async () => `oidc-${++tokens}`, createClient });
+
+  assert.equal(await rewrite({ problem: '2x + 3 = 11', interest: 'basketball' }), 'Hoops: 2x + 3 = 11');
+  assert.deepEqual(
+    requests.map((r) => r.body.model),
+    ['anthropic/claude-opus-5.5', 'anthropic/claude-opus-5-5'],
+  );
+  const accepted = requests[1];
+  assert.match(accepted.url, /\/v1\/messages/);
+  assert.equal(accepted.headers.get('x-api-key'), 'oidc-1');
+  assert.deepEqual(accepted.body.output_config, { effort: 'low' });
+  assert.equal(accepted.body.fallbacks, undefined, 'no Anthropic-only parameters through the gateway');
+  assert.equal(accepted.body.messages[0].content, '<problem>\n2x + 3 = 11\n</problem>\n<theme>basketball</theme>');
+
+  // Second call: straight to the model that worked, with a fresh token.
+  await rewrite({ problem: 'x + 1 = 2', interest: 'basketball' });
+  assert.equal(requests.length, 3);
+  assert.equal(requests[2].body.model, 'anthropic/claude-opus-5-5');
+  assert.equal(requests[2].headers.get('x-api-key'), 'oidc-2');
+});
+
+test('the AI Gateway rewriter fails cleanly without a token or on an auth error', async () => {
+  const noToken = createGatewayRewriter({ getToken: async () => undefined });
+  assert.deepEqual(await rewriteProblem(noToken, '2x + 3 = 11', 'soccer', quietLog), { ok: false, reason: 'unavailable' });
+
+  const { createClient, requests } = gatewayClient(() => ({
+    status: 401,
+    body: { type: 'error', error: { type: 'authentication_error', message: 'bad token' } },
+  }));
+  const denied = createGatewayRewriter({ getToken: async () => 't', createClient });
+  assert.deepEqual(await rewriteProblem(denied, '2x + 3 = 11', 'soccer', quietLog), { ok: false, reason: 'unavailable' });
+  assert.equal(requests.length, 1, 'an auth error is not retried with other models');
+});
+
+test('funModeSettings picks Anthropic, then the AI Gateway, then off', () => {
+  assert.deepEqual(funModeSettings({}), { on: false, provider: null, model: null });
+  assert.equal(funModeSettings({ ANTHROPIC_API_KEY: 'k', VERCEL: '1' }).provider, 'anthropic');
+  assert.equal(funModeSettings({ VERCEL: '1' }).provider, 'gateway');
+  assert.equal(funModeSettings({ AI_GATEWAY_API_KEY: 'k' }).provider, 'gateway');
+  assert.equal(funModeSettings({ VERCEL: '1', FUN_MODE: 'off' }).on, false);
+  assert.equal(funModeSettings({ VERCEL: '1', FUN_MODE_MODEL: 'anthropic/claude-sonnet-5.5' }).model, 'anthropic/claude-sonnet-5.5');
 });

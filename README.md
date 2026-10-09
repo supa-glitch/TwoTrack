@@ -33,9 +33,10 @@ ANTHROPIC_API_KEY=sk-ant-... npm start
 | Setting | What it does |
 |---|---|
 | `PORT` | Port to listen on (default 3000). |
-| `ANTHROPIC_API_KEY` | Turns on Fun Mode. |
+| `ANTHROPIC_API_KEY` | Turns on Fun Mode, calling Claude directly. |
+| `AI_GATEWAY_API_KEY` | Turns on Fun Mode through Vercel AI Gateway. Not needed on a Vercel deployment, which signs in on its own. |
 | `FUN_MODE` | `off` to turn Fun Mode off even with a key; `on` to use other Claude credentials (for example an `ant auth login` profile). |
-| `FUN_MODE_MODEL` | Claude model for Fun Mode (default `claude-opus-5-5`). |
+| `FUN_MODE_MODEL` | Model for Fun Mode. Default `claude-opus-5-5` directly. Through the gateway, it tries `anthropic/claude-opus-5.5` and falls back to `anthropic/claude-opus-5`. |
 
 ### Putting it online for the test
 
@@ -52,7 +53,7 @@ A demo is live at **https://twotrack-ten.vercel.app**.
 `vercel.json` serves `public/` as static pages and sends every `/api/...` request to one function, `api/index.js`, which runs the same app as `npm start`.
 
 - **Fine for trying it out, not yet for a real lesson.** Classes live in the function's memory, and Vercel doesn't keep one copy of the function running. It shuts down idle copies, starts fresh ones on every deploy, and can run several at once when busy. When that happens, a class vanishes ("No class with that code"). Before the real test, either move class state into a shared store (Upstash Redis from the Vercel Marketplace has a free tier), or run `npm start` on an always-on host.
-- **To turn on Fun Mode**, add `ANTHROPIC_API_KEY` under the Vercel project's Settings → Environment Variables, then redeploy.
+- **Fun Mode works on Vercel with no setup.** It calls Claude through [Vercel AI Gateway](https://vercel.com/docs/ai-gateway), signed in with the deployment's own OIDC token, and the cost comes out of the Vercel account's AI Gateway credits. Each rewrite is a fraction of a cent. To call Anthropic directly instead, add `ANTHROPIC_API_KEY` under Settings → Environment Variables and redeploy.
 
 ## In class
 
@@ -136,11 +137,12 @@ The AI only rewrites the wording. Every Fun Mode rewrite is checked in code befo
 
 The theme a group types is limited to 40 characters and is sent to Claude as data, not instructions. Claude is told to keep the result school-appropriate. Rewrites are cached per problem and theme, and capped at 60 per group per class. The teacher can turn Fun Mode off for a class on the setup page.
 
-Fun Mode calls `claude-opus-5-5` at low effort, with server-side refusal fallback turned on (`fallbacks: "default"`), so a declined request is retried on another model instead of failing. Set `FUN_MODE_MODEL` to use a different model.
+With `ANTHROPIC_API_KEY`, Fun Mode calls `claude-opus-5-5` at low effort, with server-side refusal fallback turned on (`fallbacks: "default"`), so a declined request is retried on another model instead of failing. Through Vercel AI Gateway it calls Claude Opus 5.5 at low effort, falling back to Claude Opus 5 if the gateway doesn't offer 5.5. Either way, any failure shows the group the original problem. Set `FUN_MODE_MODEL` to use a different model.
 
 ## Student data
 
 - Groups use a class code and a group name. There are no accounts or passwords.
+- Fun Mode sends only the problem text and the group's theme to Claude (through Vercel AI Gateway on the Vercel demo). Never names or answers.
 - Exit tickets ask for a first name only.
 - Nothing is written to disk or a database. A class is deleted when the teacher presses **Clear class data**, after 12 hours with no activity, or after 24 hours, whichever comes first. A server restart also deletes it.
 - The board is protected by a long secret saved in the teacher's browser, or the 6-digit PIN for a phone. After 10 wrong PINs in 10 minutes, sign-in locks for that class.
@@ -194,4 +196,4 @@ public/lib/worksheet.js  worksheet parser (used by the setup page preview and th
 public/*.html, public/js/  student page, teacher setup, live board, smartboard display
 ```
 
-There's no build step and no framework. The only dependency is the Anthropic SDK.
+There's no build step and no framework. The dependencies are the Anthropic SDK and `@vercel/oidc` (for signing in to Vercel AI Gateway on a deployment).
