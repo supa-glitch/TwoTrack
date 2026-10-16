@@ -6,13 +6,33 @@
   "fluid": true,
   "functions": {
     "api/index.js": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "includeFiles": "pages/**"
     }
   },
+  "redirects": [
+    {
+      "source": "/teacher",
+      "destination": "/app",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/:path*",
       "destination": "/api/index?__path=:path*"
+    },
+    {
+      "source": "/auth/:path*",
+      "destination": "/api/index?__page=auth/:path*"
+    },
+    {
+      "source": "/app",
+      "destination": "/api/index?__page=app"
+    },
+    {
+      "source": "/board",
+      "destination": "/api/index?__page=board"
     }
   ],
   "headers": [

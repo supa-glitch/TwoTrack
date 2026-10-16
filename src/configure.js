@@ -3,6 +3,8 @@
 
 import { getVercelOidcToken } from '@vercel/oidc';
 import { createApp } from './app.js';
+import { authNotSetUp, createSupabaseAuth, supabaseSettings } from './auth.js';
+import { createContactBox } from './contact.js';
 import { createClaudeRewriter, createGatewayRewriter, DEFAULT_MODEL } from './funmode.js';
 
 /**
@@ -55,18 +57,28 @@ export function createConfiguredApp(env = process.env) {
   let rewriter = null;
   if (fun.provider === 'anthropic') rewriter = createClaudeRewriter({ model: fun.model, apiKey: fun.apiKey });
   if (fun.provider === 'gateway') rewriter = createGatewayRewriter({ getToken: () => gatewayToken(env), model: fun.model || undefined });
-  return { app: createApp({ rewriter, funModeLabel: PROVIDER_LABELS[fun.provider] || null }), fun };
+  // Teacher accounts and the contact form both use the Supabase project.
+  const supabase = supabaseSettings(env);
+  const auth = supabase ? createSupabaseAuth(supabase) : authNotSetUp;
+  const contact = createContactBox(supabase);
+  const app = createApp({ rewriter, funModeLabel: PROVIDER_LABELS[fun.provider] || null, auth, contact });
+  return { app, fun, accounts: Boolean(supabase) };
 }
 
 /**
- * vercel.json rewrites /api/x/y to /api/index?__path=x/y. Put the original
- * path back so the app's router sees /api/x/y either way.
+ * vercel.json rewrites /api/x/y to /api/index?__path=x/y, and pages that need
+ * the server (/app, /board, /auth/...) to /api/index?__page=app. Put the
+ * original path back so the app's router sees the real path either way.
  */
 export function restoreApiPath(rawUrl) {
   const url = new URL(rawUrl || '/', 'http://localhost');
-  const moved = url.searchParams.get('__path');
-  if (moved === null || !url.pathname.startsWith('/api')) return rawUrl;
+  if (!url.pathname.startsWith('/api')) return rawUrl;
+  const apiPath = url.searchParams.get('__path');
+  const page = url.searchParams.get('__page');
+  if (apiPath === null && page === null) return rawUrl;
   url.searchParams.delete('__path');
+  url.searchParams.delete('__page');
   const query = url.searchParams.toString();
-  return `/api/${moved.replace(/^\/+/, '')}${query ? `?${query}` : ''}`;
+  const pathname = page !== null ? `/${page.replace(/^\/+/, '')}` : `/api/${apiPath.replace(/^\/+/, '')}`;
+  return `${pathname}${query ? `?${query}` : ''}`;
 }

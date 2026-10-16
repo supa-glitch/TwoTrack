@@ -10,8 +10,11 @@
   </head>
   <body>
     <header class="topbar">
-      <a class="brand" href="/">TwoTrack</a>
-      <a href="/board" class="small">Open a class you already started →</a>
+      <a class="brand" href="/app">TwoTrack</a>
+      <div class="row">
+        <a href="/board" class="small">Open a class you already started →</a>
+        <form method="post" action="/auth/logout" class="inline-form"><button class="quiet-button" type="submit">Log out</button></form>
+      </div>
     </header>
 
     <main class="wrap stack">

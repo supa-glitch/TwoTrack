@@ -1,5 +1,5 @@
 // HTTP routes for TwoTrack. Uses only Node's built-in http module so it runs
-// anywhere Node runs, with nothing to configure but an optional API key.
+// anywhere Node runs. Teacher accounts come from Supabase (src/auth.js).
 
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { timingSafeEqual } from 'node:crypto';
 import { parseLesson } from '../public/lib/worksheet.js';
 import { rewriteProblem } from './funmode.js';
+import { AuthError, authNotSetUp } from './auth.js';
+import { ContactError } from './contact.js';
 import {
   UserError,
   acknowledge,
@@ -28,8 +30,24 @@ import {
   updateSettings,
 } from './classroom.js';
 
-const PUBLIC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
-const PAGES = { '/': 'index.html', '/teacher': 'teacher.html', '/board': 'board.html', '/display': 'display.html' };
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+const PUBLIC_DIR = path.join(ROOT, 'public');
+// Pages anyone can open.
+const PAGES = {
+  '/': 'index.html', // the landing page
+  '/join': 'join.html', // students join a class here; they never have accounts
+  '/signup': 'signup.html',
+  '/login': 'login.html',
+  '/display': 'display.html', // the smartboard screen: only the class code and group names
+};
+// Teacher pages: only for a logged-in teacher. They live outside public/ so
+// Vercel's CDN can't hand them out without the login check.
+const TEACHER_DIR = path.join(ROOT, 'pages');
+const TEACHER_PAGES = { '/app': 'app.html', '/board': 'board.html' };
+const MOVED = { '/teacher': '/app' };
+const AFTER_LOGIN = new Set(['/app', '/board']);
+const CSP =
+  "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -99,6 +117,18 @@ async function readJson(req) {
   return parseJson(Buffer.concat(chunks).toString('utf8'));
 }
 
+function redirect(res, location, status = 302) {
+  res.writeHead(status, { Location: location, 'Cache-Control': 'no-store' });
+  res.end();
+}
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Where to go after logging in: the page they were sent away from, or /app. */
+function nextPage(value) {
+  return AFTER_LOGIN.has(value) ? value : '/app';
+}
+
 function sameSecret(given, expected) {
   const a = Buffer.from(String(given ?? ''));
   const b = Buffer.from(expected);
@@ -112,7 +142,19 @@ function sameSecret(given, expected) {
  * @param {() => number} [options.now]
  * @param {Console} [options.log]
  */
-export function createApp({ rewriter = null, funModeLabel = null, now = () => Date.now(), log = console } = {}) {
+/**
+ * @param {object} options
+ * @param {object} [options.auth] teacher accounts (createSupabaseAuth); without it nobody can log in
+ * @param {(body: object, ip: string) => Promise<void>} [options.contact] saves contact form messages
+ */
+export function createApp({
+  rewriter = null,
+  funModeLabel = null,
+  auth = authNotSetUp,
+  contact = null,
+  now = () => Date.now(),
+  log = console,
+} = {}) {
   /** @type {Map<string, ReturnType<typeof createClass>>} */
   const classes = new Map();
   const funModeAvailable = Boolean(rewriter);
@@ -121,6 +163,13 @@ export function createApp({ rewriter = null, funModeLabel = null, now = () => Da
     const cls = classes.get(normalizeCode(rawCode));
     if (!cls) throw new HttpError(404, 'No class with that code. Check the code on the board.');
     return cls;
+  }
+
+  /** Only a logged-in teacher may start classes or open boards. */
+  async function requireTeacher(req, res) {
+    const user = await auth.currentUser(req, res);
+    if (!user) throw new HttpError(401, 'Your login has expired. Log in again to do that.');
+    return user;
   }
 
   function asTeacher(req, cls) {
@@ -185,9 +234,65 @@ export function createApp({ rewriter = null, funModeLabel = null, now = () => Da
   const routes = [];
   const route = (method, pattern, handler) => routes.push({ method, pattern, handler });
 
-  route('GET', /^\/api\/health$/, () => ({ ok: true, funMode: funModeAvailable }));
+  route('GET', /^\/api\/health$/, () => ({ ok: true, funMode: funModeAvailable, accounts: auth.configured }));
 
-  route('POST', /^\/api\/classes$/, async (req) => {
+  route('POST', /^\/api\/contact$/, async (req) => {
+    const body = await readJson(req);
+    if (!contact) throw new HttpError(503, 'The contact form isn’t set up yet.');
+    const ip = String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim();
+    await contact(body, ip);
+    return { ok: true };
+  });
+
+  // ---- teacher accounts
+
+  route('POST', /^\/auth\/signup$/, async (req, _, res) => {
+    const body = await readJson(req);
+    const name = String(body.name ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
+    const email = String(body.email ?? '').trim().toLowerCase();
+    const password = String(body.password ?? '');
+    if (!name) throw new HttpError(400, 'Type your name.');
+    if (!EMAIL.test(email)) throw new HttpError(400, 'Type a valid email address.');
+    if (password.length < 8) throw new HttpError(400, 'Use a password with at least 8 characters.');
+    if (password.length > 72) throw new HttpError(400, 'Use a password with at most 72 characters.');
+    const { loggedIn } = await auth.signUp(req, res, { name, email, password });
+    return loggedIn
+      ? { redirect: nextPage(body.next) }
+      : { message: 'Almost done: we sent you an email. Open the link in it to confirm your account, then log in.' };
+  });
+
+  route('POST', /^\/auth\/login$/, async (req, _, res) => {
+    const body = await readJson(req);
+    const email = String(body.email ?? '').trim().toLowerCase();
+    const password = String(body.password ?? '');
+    if (!email || !password) throw new HttpError(400, 'Type your email and password.');
+    await auth.logIn(req, res, { email, password });
+    return { redirect: nextPage(body.next) };
+  });
+
+  // The Log out button is a plain form, so this answers with a redirect.
+  route('POST', /^\/auth\/logout$/, async (req, _, res) => {
+    try {
+      await auth.logOut(req, res);
+    } catch (err) {
+      log.warn(`Log out at Supabase failed: ${err.message}`);
+    }
+    return { redirectTo: '/', status: 303 };
+  });
+
+  // The link in Supabase's confirmation email lands here.
+  route('GET', /^\/auth\/callback$/, async (req, _, res) => {
+    const url = new URL(req.url, 'http://localhost');
+    const loggedIn = await auth.confirm(req, res, {
+      code: url.searchParams.get('code'),
+      tokenHash: url.searchParams.get('token_hash'),
+      type: url.searchParams.get('type'),
+    });
+    return { redirectTo: loggedIn ? '/app' : '/login?confirmed=1' };
+  });
+
+  route('POST', /^\/api\/classes$/, async (req, _, res) => {
+    await requireTeacher(req, res);
     const body = await readJson(req);
     const lesson = parseLesson(body.worksheet, body.exitTicket);
     const errors = lesson.issues.filter((i) => i.level === 'error');
@@ -203,7 +308,8 @@ export function createApp({ rewriter = null, funModeLabel = null, now = () => Da
     return { code, teacherKey: cls.teacherKey, pin: cls.pin };
   });
 
-  route('POST', /^\/api\/teacher\/login$/, async (req) => {
+  route('POST', /^\/api\/teacher\/login$/, async (req, _, res) => {
+    await requireTeacher(req, res);
     const body = await readJson(req);
     const cls = getClass(body.code);
     const t = now();
@@ -370,10 +476,17 @@ export function createApp({ rewriter = null, funModeLabel = null, now = () => Da
     }
     const type = TYPES[path.extname(full)] ?? 'application/octet-stream';
     const headers = { 'Content-Type': type, 'Cache-Control': 'no-cache' };
-    if (type.startsWith('text/html')) {
-      headers['Content-Security-Policy'] =
-        "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'";
-    }
+    if (type.startsWith('text/html')) headers['Content-Security-Policy'] = CSP;
+    if (req.method === 'HEAD') return send(res, 200, '', headers);
+    send(res, 200, data, headers);
+  }
+
+  /** /app and /board: the page for a logged-in teacher, the log-in page for anyone else. */
+  async function serveTeacherPage(req, res, pathname) {
+    const user = await auth.currentUser(req, res);
+    if (!user) return redirect(res, `/login?next=${encodeURIComponent(pathname)}`);
+    const data = await readFile(path.join(TEACHER_DIR, TEACHER_PAGES[pathname]));
+    const headers = { 'Content-Type': TYPES['.html'], 'Cache-Control': 'private, no-store', 'Content-Security-Policy': CSP };
     if (req.method === 'HEAD') return send(res, 200, '', headers);
     send(res, 200, data, headers);
   }
@@ -381,21 +494,25 @@ export function createApp({ rewriter = null, funModeLabel = null, now = () => Da
   async function handler(req, res) {
     const { pathname } = new URL(req.url, 'http://localhost');
     try {
-      if (pathname.startsWith('/api/')) {
+      if (pathname.startsWith('/api/') || pathname.startsWith('/auth/')) {
         for (const r of routes) {
           const match = r.method === req.method && pathname.match(r.pattern);
           if (!match) continue;
-          const result = await r.handler(req, match.slice(1));
+          const result = await r.handler(req, match.slice(1), res);
+          if (result && result.redirectTo) return redirect(res, result.redirectTo, result.status);
           if (result && result.raw !== undefined) return send(res, 200, result.raw, result.headers);
           return send(res, 200, result);
         }
         throw new HttpError(404, 'Not found');
       }
       if (req.method !== 'GET' && req.method !== 'HEAD') throw new HttpError(405, 'Method not allowed');
+      if (MOVED[pathname]) return redirect(res, MOVED[pathname], 301);
+      if (TEACHER_PAGES[pathname]) return await serveTeacherPage(req, res, pathname);
       await serveStatic(req, res, pathname);
     } catch (err) {
       if (err instanceof HttpError) return send(res, err.status, { error: err.message });
       if (err instanceof UserError) return send(res, 400, { error: err.message });
+      if (err instanceof AuthError || err instanceof ContactError) return send(res, err.status, { error: err.message });
       log.error(err);
       send(res, 500, { error: 'Something went wrong. Try again.' });
     }

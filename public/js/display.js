@@ -4,7 +4,7 @@
 import { $, api, poll } from './common.js';
 
 const code = location.hash.replace('#', '').toUpperCase();
-$('#join-url').textContent = location.host;
+$('#join-url').textContent = `${location.host}/join`;
 $('#code').textContent = code || '—';
 
 if (code) {

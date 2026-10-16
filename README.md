@@ -13,6 +13,66 @@ At the end, each student does the exit ticket on their own, and the teacher gets
 
 The plan this was built from is in [docs/mvp-plan.md](docs/mvp-plan.md).
 
+## The site
+
+| Address | Page | Who can open it |
+|---|---|---|
+| `/` | Landing page (pricing at `/#pricing`) | Anyone |
+| `/signup`, `/login` | Teacher sign-up and log-in | Anyone |
+| `/app` | Lesson setup: the teacher's first page after logging in | Logged-in teachers |
+| `/board` | Live board | Logged-in teachers |
+| `/join` | Students join a class and do the worksheet | Anyone (students never have accounts) |
+| `/display` | Smartboard screen with the class code | Anyone (shows only the code and group names) |
+
+Opening `/app` or `/board` while logged out goes to `/login`. **Log out** (top of the app pages) returns to `/`. The old `/teacher` address forwards to `/app`, and old `/?code=` links forward to `/join`.
+
+## Teacher accounts (Supabase)
+
+Logins use [Supabase Auth](https://supabase.com/docs/guides/auth). Supabase stores the accounts and hashes the passwords; this app never stores a password. Sign-up asks for name, email and password only. The login lives in an httpOnly cookie, set and refreshed by Supabase's own server library (`@supabase/ssr`).
+
+Until Supabase is set up, the site works except that nobody can log in: `/app` and `/board` stay locked, and the log-in page says accounts aren't set up yet.
+
+**Set it up on Vercel (recommended):**
+
+1. In the Vercel dashboard, open the **twotrack** project → **Storage** (or the **Marketplace**) → **Supabase** → create a database and connect it to this project. Vercel adds the keys as environment variables for you.
+2. In the Supabase dashboard for that project:
+   - **Authentication → Sign In / Providers → Email**: turn **Confirm email** off if sign-up should go straight into the app. If you leave it on, teachers get "check your email" first, and the link in that email brings them back logged in.
+   - **Authentication → URL Configuration**: set **Site URL** to the site's address (for example `https://twotrack-ten.vercel.app`) and add `https://twotrack-ten.vercel.app/auth/callback` under **Redirect URLs**.
+   - **SQL Editor**: run the SQL below once, for the contact form.
+3. Redeploy, so the new environment variables are used.
+
+**Or set the keys yourself** (Supabase → Project Settings → API), in Vercel's Environment Variables and locally:
+
+| Variable | Value |
+|---|---|
+| `SUPABASE_URL` | The project URL, `https://<project>.supabase.co` |
+| `SUPABASE_ANON_KEY` | The anon (or publishable) key. It's designed to be public, but keep it in an environment variable, not the code. |
+
+The names Vercel's Supabase integration uses (`NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, …) work too. No secret or service-role key is needed.
+
+**Contact form table** (run once in Supabase's SQL Editor). Messages appear under Table Editor → `contact_messages`:
+
+```sql
+create table public.contact_messages (
+  id bigint generated always as identity primary key,
+  created_at timestamptz not null default now(),
+  name text not null check (char_length(name) <= 100),
+  email text not null check (char_length(email) <= 200),
+  message text not null check (char_length(message) <= 4000)
+);
+alter table public.contact_messages enable row level security;
+-- Visitors can add a message but can't read, change or delete any.
+create policy "Anyone can send a contact message"
+  on public.contact_messages for insert to anon, authenticated with check (true);
+```
+
+**Trying it without a Supabase project:** `test/helpers/mock-supabase.js` is a stand-in that speaks the same login API, for local testing only:
+
+```sh
+node test/helpers/mock-supabase.js 54321 &
+SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_ANON_KEY=mock-anon-key npm start
+```
+
 ## Run it
 
 You need [Node.js](https://nodejs.org) 20 or newer.
@@ -22,7 +82,7 @@ npm install
 npm start
 ```
 
-Open http://localhost:3000/teacher to set up a lesson. Students go to http://localhost:3000.
+Open http://localhost:3000 for the landing page. Teachers sign up or log in, then set up a lesson at `/app`. Students go to http://localhost:3000/join. (Logging in needs Supabase: see **Teacher accounts** above.)
 
 To turn on **Fun Mode**, set an Anthropic API key before starting:
 
@@ -33,6 +93,7 @@ ANTHROPIC_API_KEY=sk-ant-... npm start
 | Setting | What it does |
 |---|---|
 | `PORT` | Port to listen on (default 3000). |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY` | Teacher accounts and the contact form (see **Teacher accounts**). |
 | `ANTHROPIC_API_KEY` | Turns on Fun Mode, calling Claude directly. |
 | `AI_GATEWAY_API_KEY` | Turns on Fun Mode through Vercel AI Gateway. Not needed on a Vercel deployment, which signs in on its own. An Anthropic key (`sk-ant-...`) saved here is used as `ANTHROPIC_API_KEY` instead. |
 | `FUN_MODE` | `off` to turn Fun Mode off even with a key; `on` to use other Claude credentials (for example an `ant auth login` profile). |
@@ -61,7 +122,7 @@ If Fun Mode fails, the Fun Mode box on the group's screen says why under "Why:",
 
 **Teacher**
 
-1. Go to `/teacher`, paste the worksheet and the exit ticket with their answers, and set the number of groups. The right-hand side shows exactly what students will get. Anything in red (like a problem with no answer) has to be fixed before you can start.
+1. Log in, then on `/app` paste the worksheet and the exit ticket with their answers, and set the number of groups. The right-hand side shows exactly what students will get. Anything in red (like a problem with no answer) has to be fixed before you can start.
 2. Press **Start class**. You get a class code and the live board.
 3. Press **Show code on smartboard** and put that window on the board. It shows the code in big letters and which groups have joined.
 4. Press **Open on your phone** to carry the board while you walk around. On your phone, go to `/board` and type the class code and the 6-digit PIN. Keep the PIN to yourself.
@@ -77,7 +138,7 @@ If Fun Mode fails, the Fun Mode box on the group's screen says why under "Why:",
 
 **Students**
 
-1. Go to the site, type the class code and a group name. If the page closes, join again with the same name to pick up where you left off.
+1. Go to the site's `/join` page, type the class code and a group name. If the page closes, join again with the same name to pick up where you left off.
 2. Answer one problem at a time. The next activity unlocks when you finish the current one.
 3. **Fun Mode** (optional): tell it what your group is into, and each problem is rewritten around it. The numbers and the answer stay the same, and the original math is always shown underneath.
 4. At the exit ticket, take turns. Each student types their first name, answers on their own, hands it in, and passes the computer on.
@@ -143,7 +204,9 @@ With `ANTHROPIC_API_KEY`, Fun Mode calls `claude-opus-5-5` at low effort, with s
 
 ## Student data
 
-- Groups use a class code and a group name. There are no accounts or passwords.
+- Groups use a class code and a group name. Students have no accounts or passwords.
+- Teacher accounts hold a name, email and password, stored by Supabase (passwords hashed by Supabase, never by this app). Nothing else is collected.
+- The landing page's contact form saves the sender's name, email and message to the `contact_messages` table.
 - Fun Mode sends only the problem text and the group's theme to Claude (through Vercel AI Gateway on the Vercel demo). Never names or answers.
 - Exit tickets ask for a first name only.
 - Nothing is written to disk or a database. A class is deleted when the teacher presses **Clear class data**, after 12 hours with no activity, or after 24 hours, whichever comes first. A server restart also deletes it.
@@ -184,18 +247,24 @@ Questions this build raised for Mr. A:
 ## Development
 
 ```sh
-npm test        # parser, answer checker, Fun Mode and API tests
+npm test        # parser, answer checker, Fun Mode, API and login tests
 npm run dev     # restart on file changes
 ```
 
 ```
 server.js              starts the HTTP server
-src/app.js             routes, static files, class expiry
+src/app.js             routes, login checks, static files, class expiry
+src/auth.js            teacher accounts through Supabase Auth (@supabase/ssr)
+src/contact.js         landing page contact form
 src/classroom.js       class and group state, flags, board and group views
 src/answers.js         answer checking
 src/funmode.js         Fun Mode: Claude rewrite + number check
 public/lib/worksheet.js  worksheet parser (used by the setup page preview and the server)
-public/*.html, public/js/  student page, teacher setup, live board, smartboard display
+public/index.html, site.css, js/landing.js   landing page
+public/signup.html, login.html, js/auth.js   teacher sign-up and log-in
+public/join.html, display.html, js/          student page, smartboard display
+pages/app.html, pages/board.html             teacher pages (served only after the login check)
+test/helpers/mock-supabase.js                local stand-in for Supabase, for tests
 ```
 
-There's no build step and no framework. The dependencies are the Anthropic SDK and `@vercel/oidc` (for signing in to Vercel AI Gateway on a deployment).
+There's no build step and no framework. The dependencies are the Anthropic SDK, Supabase's client libraries (`@supabase/supabase-js`, `@supabase/ssr`), and `@vercel/oidc` (for signing in to Vercel AI Gateway on a deployment).

@@ -12,7 +12,7 @@
     <!-- Sign in (phone, or a different computer) -->
     <main id="signin-view" class="wrap narrow" hidden>
       <div class="stack join-stack">
-        <a class="brand brand-lg" href="/">TwoTrack</a>
+        <a class="brand brand-lg" href="/app">TwoTrack</a>
         <form id="signin-form" class="card stack" autocomplete="off">
           <h1>Open your live board</h1>
           <p class="muted m0">Use the class code and the 6-digit board PIN from the computer you set up the lesson on.</p>
@@ -27,7 +27,8 @@
           <p id="signin-error" class="error" role="alert" hidden></p>
           <button class="big" type="submit">Open board</button>
         </form>
-        <p class="muted small">No class yet? <a href="/teacher">Set up a lesson</a>.</p>
+        <p class="muted small">No class yet? <a href="/app">Set up a lesson</a>.</p>
+        <div><form method="post" action="/auth/logout" class="inline-form"><button class="quiet-button" type="submit">Log out</button></form></div>
       </div>
     </main>
 
@@ -37,7 +38,8 @@
         <h1 id="ended-title">This class has ended</h1>
         <p id="ended-text" class="muted">Its groups, names and exit tickets have been deleted.</p>
         <div class="row">
-          <a class="button" href="/teacher">Set up another lesson</a>
+          <a class="button" href="/app">Set up another lesson</a>
+          <form method="post" action="/auth/logout" class="inline-form"><button class="quiet-button" type="submit">Log out</button></form>
         </div>
       </div>
     </main>
@@ -53,6 +55,7 @@
           <button id="show-code" class="secondary" type="button">Show code on smartboard</button>
           <button id="phone" class="secondary" type="button">Open on your phone</button>
           <button id="settings" class="secondary" type="button">Settings</button>
+          <form method="post" action="/auth/logout" class="inline-form"><button class="quiet-button" type="submit">Log out</button></form>
         </div>
       </header>
 

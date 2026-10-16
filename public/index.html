@@ -3,158 +3,260 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>TwoTrack</title>
-    <link rel="stylesheet" href="/styles.css" />
+    <title>TwoTrack · See every group at once</title>
+    <meta
+      name="description"
+      content="TwoTrack runs your own worksheet on each group's computer and shows you who's done, who's stuck, and who went quiet, so you finish the lesson."
+    />
+    <link rel="stylesheet" href="/site.css" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <script type="module" src="/js/group.js"></script>
+    <script type="module" src="/js/landing.js"></script>
   </head>
-  <body>
-    <!-- Join -->
-    <main id="join-view" class="wrap narrow" hidden>
-      <div class="stack join-stack">
-        <div>
-          <a class="brand brand-lg" href="/">TwoTrack</a>
-        </div>
-        <form id="join-form" class="card stack" autocomplete="off">
-          <h1>Join your class</h1>
-          <div>
-            <label for="join-code">Class code <span class="hint">— it’s on the board</span></label>
-            <input id="join-code" class="code-input" type="text" maxlength="8" required inputmode="text" autocapitalize="characters" spellcheck="false" />
-          </div>
-          <div>
-            <label for="join-name">Group name</label>
-            <input id="join-name" type="text" maxlength="24" required spellcheck="false" />
-            <p class="hint mt-xs">Use the same name if you need to join again. You’ll pick up where you left off.</p>
-          </div>
-          <p id="join-error" class="error" role="alert" hidden></p>
-          <button class="big" type="submit">Join</button>
-        </form>
-        <p class="muted small">Teacher? <a href="/teacher">Set up a lesson</a> or <a href="/board">open your board</a>.</p>
+  <body class="site">
+    <header class="site-bar">
+      <div class="site-wrap bar-inner">
+        <a class="logo" href="/">TwoTrack</a>
+        <nav class="bar-links" aria-label="Main">
+          <a href="/#pricing">Pricing</a>
+          <a href="/login" class="bar-login">Log in</a>
+        </nav>
       </div>
+    </header>
+
+    <main>
+      <!-- Hero -->
+      <section class="hero">
+        <div class="site-wrap hero-grid">
+          <div>
+            <h1>See every group at once.</h1>
+            <p class="lead">
+              TwoTrack runs your own worksheet on each group's computer and shows you who's done, who's stuck, and who went quiet, so you finish the lesson.
+            </p>
+            <div class="cta-row">
+              <a class="btn btn-primary" href="/signup">Try it free with one class</a>
+              <a class="btn btn-ghost" href="/login">Log in</a>
+            </div>
+            <p class="student-link">Student? <a href="/join">Join your class →</a></p>
+          </div>
+
+          <figure class="mock" aria-label="Example of the teacher's live board: six groups, four on track, one quiet, one stuck">
+            <div class="mock-window" aria-hidden="true">
+              <div class="mock-bar">
+                <span class="mock-dots"><i></i><i></i><i></i></span>
+                <span>Live board</span>
+                <span class="mock-need">2 need you</span>
+              </div>
+              <div class="mock-grid">
+                <div class="mock-card">
+                  <b>Group 1</b><span class="mock-chip">On track</span>
+                  <div class="mock-bar-track"><i class="w70"></i></div>
+                </div>
+                <div class="mock-card">
+                  <b>Group 2</b><span class="mock-chip">On track</span>
+                  <div class="mock-bar-track"><i class="w55"></i></div>
+                </div>
+                <div class="mock-card">
+                  <b>Group 3</b><span class="mock-chip">On track</span>
+                  <div class="mock-bar-track"><i class="w85"></i></div>
+                </div>
+                <div class="mock-card is-quiet">
+                  <b>Group 4</b><span class="mock-chip">Quiet 4m</span>
+                  <div class="mock-bar-track"><i class="w35"></i></div>
+                </div>
+                <div class="mock-card">
+                  <b>Group 5</b><span class="mock-chip">On track</span>
+                  <div class="mock-bar-track"><i class="w45"></i></div>
+                </div>
+                <div class="mock-card is-stuck">
+                  <b>Group 6</b><span class="mock-chip">Stuck on #3</span>
+                  <div class="mock-bar-track"><i class="w20"></i></div>
+                </div>
+              </div>
+            </div>
+          </figure>
+        </div>
+      </section>
+
+      <!-- The problem -->
+      <section class="section section-navy" id="problem">
+        <div class="site-wrap narrow">
+          <p class="eyebrow">The problem</p>
+          <h2>The group behind your back goes off task.</h2>
+          <p class="lead">
+            During group work you can only stand at one table. While you help one group, the group behind your back drifts off task, and the lesson
+            ends early with a rushed exit ticket.
+          </p>
+        </div>
+      </section>
+
+      <!-- How it works -->
+      <section class="section section-white" id="how">
+        <div class="site-wrap">
+          <div class="section-head">
+            <p class="eyebrow">How it works</p>
+            <h2>Three steps, and you can see the whole room.</h2>
+          </div>
+          <ol class="steps grid-3">
+            <li class="card">
+              <span class="step-num">1</span>
+              <h3>Paste your worksheet and answer key.</h3>
+              <p class="muted">Your own activities and problems, as plain text. You see exactly what students will get before class starts.</p>
+            </li>
+            <li class="card">
+              <span class="step-num">2</span>
+              <h3>Groups work through it together on one computer.</h3>
+              <p class="muted">One problem at a time, checked right away. The next activity unlocks when they finish the one they're on.</p>
+            </li>
+            <li class="card">
+              <span class="step-num">3</span>
+              <h3>Watch every group live on your board.</h3>
+              <p class="muted">See who's done, who's stuck, and who went quiet, so you know which table needs you next.</p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- Fun Mode -->
+      <section class="section" id="fun-mode">
+        <div class="site-wrap">
+          <div class="section-head">
+            <p class="eyebrow">Fun Mode</p>
+            <h2>Same math, in their world.</h2>
+            <p class="lead">A group picks something they're into, and TwoTrack rewrites the wording around it. The numbers and the answer stay the same.</p>
+          </div>
+          <div class="fun-compare">
+            <div class="fun-side">
+              <p class="fun-label">Your worksheet</p>
+              <p class="fun-math">x/2 + x/4 = 9</p>
+            </div>
+            <div class="fun-arrow" aria-hidden="true">→</div>
+            <div class="fun-side is-fun">
+              <p class="fun-label">Basketball version</p>
+              <p class="fun-story">
+                Half your team's points came from layups and a quarter from free throws. That adds up to 9 points. How many points did the team score?
+              </p>
+            </div>
+          </div>
+          <p class="fun-result">Same numbers. Same answer: 12.</p>
+        </div>
+      </section>
+
+      <!-- Built for teachers -->
+      <section class="section section-white" id="teachers">
+        <div class="site-wrap">
+          <div class="section-head">
+            <p class="eyebrow">Built for teachers</p>
+            <h2>Your lesson, your key, your class.</h2>
+          </div>
+          <div class="grid-4">
+            <div class="card">
+              <h3>Uses your own worksheet</h3>
+              <p class="muted">Teach from the worksheet you already have. Nothing new to write.</p>
+            </div>
+            <div class="card">
+              <h3>Your answer key decides</h3>
+              <p class="muted">Answers are checked against your own key. The AI never decides what's right.</p>
+            </div>
+            <div class="card">
+              <h3>Exit ticket built in</h3>
+              <p class="muted">Each student answers on their own and you get every score.</p>
+            </div>
+            <div class="card">
+              <h3>Setup takes minutes</h3>
+              <p class="muted">Paste your worksheet, check the preview, and start the class.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Coming soon -->
+      <section class="section" id="coming-soon">
+        <div class="site-wrap">
+          <div class="section-head">
+            <p class="eyebrow">Coming soon</p>
+            <h2>What's next.</h2>
+          </div>
+          <div class="grid-2">
+            <div class="card">
+              <span class="tag">Coming soon</span>
+              <h3>Spanish support</h3>
+              <p class="muted">TwoTrack in Spanish.</p>
+            </div>
+            <div class="card">
+              <span class="tag">Coming soon</span>
+              <h3>A home version for students</h3>
+              <p class="muted">Practice at home, one problem at a time.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Pricing -->
+      <section class="section section-white" id="pricing">
+        <div class="site-wrap">
+          <div class="section-head">
+            <p class="eyebrow">Pricing</p>
+            <h2>Start free with one class.</h2>
+          </div>
+          <div class="grid-3">
+            <div class="card price-card">
+              <h3>Free trial</h3>
+              <p class="price">$0</p>
+              <p class="muted">One class, to see if it works for you.</p>
+              <a class="btn btn-primary btn-block" href="/signup">Try it free with one class</a>
+            </div>
+            <div class="card price-card is-featured">
+              <h3>Teacher</h3>
+              <p class="price">$15 <small>per teacher / month</small></p>
+              <p class="price-note">Founding schools pay <strong>$8 per teacher per month</strong> for their first semester.</p>
+              <a class="btn btn-ghost btn-block" href="#contact">Contact us</a>
+            </div>
+            <div class="card price-card">
+              <span class="tag">Coming soon</span>
+              <h3>Home</h3>
+              <p class="price">$5 <small>/ month</small></p>
+              <p class="muted">For students practicing at home, with a free version limited to 1 lesson a day.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- About -->
+      <section class="section" id="about">
+        <div class="site-wrap">
+          <p class="eyebrow">About</p>
+          <p class="about-text">Built by David, a high school freshman in New York City who sits in these classrooms every day.</p>
+        </div>
+      </section>
     </main>
 
-    <!-- Working -->
-    <div id="work-view" hidden>
-      <header class="topbar">
-        <div class="row">
-          <span class="brand">TwoTrack</span>
-          <span class="who" id="group-name"></span>
-        </div>
-        <div class="row">
-          <span class="muted small" id="class-title"></span>
-          <button id="leave" class="quiet-button" type="button">Leave</button>
-        </div>
-      </header>
-
-      <main class="wrap narrow stack">
-        <p id="connection" class="notice warn" role="status" hidden></p>
-
-        <!-- Activities -->
-        <section id="activity-section" class="stack" hidden>
-          <ol class="steps" id="steps" aria-label="Activities"></ol>
-
-          <div id="activity-done" class="card celebrate stack" hidden>
-            <div class="emoji" aria-hidden="true">🎉</div>
-            <h2 id="activity-done-title"></h2>
-            <p id="activity-done-next" class="muted"></p>
-            <div><button id="activity-continue" class="big" type="button">Keep going</button></div>
+    <!-- Footer -->
+    <footer class="site-footer">
+      <div class="site-wrap">
+        <div class="footer-grid">
+          <div>
+            <h2>See every group at once.</h2>
+            <p>Try TwoTrack with one of your classes. It's free.</p>
+            <a class="btn btn-primary" href="/signup">Try it free with one class</a>
           </div>
-
-          <div id="problem-card" class="card stack">
-            <div class="row spread">
-              <div>
-                <h2 id="activity-title" class="m0"></h2>
-                <p id="activity-directions" class="muted small directions"></p>
-              </div>
-              <button id="fun-toggle" class="secondary fun-toggle" type="button" aria-pressed="false" hidden>🎮 Fun Mode</button>
+          <form id="contact" class="form" autocomplete="on">
+            <h2>Questions?</h2>
+            <label>Name <input name="name" maxlength="100" required autocomplete="name" /></label>
+            <label>Email <input name="email" type="email" maxlength="200" required autocomplete="email" /></label>
+            <label>Message <textarea name="message" maxlength="4000" required></textarea></label>
+            <div class="trap" aria-hidden="true">
+              <label>Leave this empty <input name="website" tabindex="-1" autocomplete="off" /></label>
             </div>
-
-            <div class="row spread">
-              <div class="dots" id="dots" aria-hidden="true"></div>
-              <span class="muted small" id="problem-count"></span>
-            </div>
-
-            <p id="moved-on" class="notice" hidden>Your teacher moved you on to the next problem.</p>
-
-            <div id="fun-story" class="fun-story" hidden aria-live="polite">
-              <div id="fun-text"></div>
-              <div id="fun-why" class="small muted" hidden></div>
-              <div class="original"><strong>The math:</strong> <span id="fun-original"></span></div>
-              <div class="row mt-sm">
-                <button id="change-interest" class="quiet-button small" type="button"></button>
-              </div>
-            </div>
-            <div id="problem-text" class="problem-text"></div>
-
-            <form id="answer-form" class="stack" autocomplete="off">
-              <label for="answer" class="hint m0">Your group’s answer</label>
-              <div class="answer-row">
-                <input id="answer" type="text" maxlength="200" spellcheck="false" autocapitalize="off" />
-                <button id="check" class="big" type="submit">Check</button>
-              </div>
-            </form>
-            <div id="feedback" class="feedback" role="status" aria-live="polite"></div>
-            <p id="stuck-note" class="notice warn" hidden>Your teacher can see you’re stuck and will come help. Keep trying different ideas together.</p>
-          </div>
-        </section>
-
-        <!-- Exit ticket -->
-        <section id="exit-section" class="stack" hidden>
-          <div id="exit-intro" class="card stack">
-            <h1>Exit ticket time</h1>
-            <p>Everyone does this <strong>on their own</strong>. Take turns on this computer. No helping!</p>
-            <form id="exit-name-form" class="stack" autocomplete="off">
-              <div>
-                <label for="exit-name">Your first name</label>
-                <input id="exit-name" type="text" maxlength="24" required spellcheck="false" />
-              </div>
-              <button class="big" type="submit">Start my exit ticket</button>
-            </form>
-            <p id="exit-submitted" class="muted small" hidden></p>
-            <div><button id="exit-all-done" class="secondary" type="button" hidden>Everyone in our group is done</button></div>
-          </div>
-
-          <form id="exit-form" class="card stack" autocomplete="off" hidden>
-            <h2 id="exit-form-title"></h2>
-            <div id="exit-problems"></div>
-            <p id="exit-error" class="error" role="alert" hidden></p>
-            <button class="big" type="submit">Hand it in</button>
+            <p id="contact-error" class="form-error" role="alert" hidden></p>
+            <p id="contact-sent" class="form-note" role="status" hidden>Thanks! Your message was sent.</p>
+            <div><button class="btn btn-primary" type="submit">Send message</button></div>
           </form>
-
-          <div id="exit-thanks" class="card celebrate stack" hidden>
-            <div class="emoji" aria-hidden="true">✅</div>
-            <h2 id="exit-thanks-title"></h2>
-            <p>Pass the computer to the next person in your group.</p>
-            <div class="row center">
-              <button id="exit-next" class="big" type="button">Next person</button>
-              <button id="exit-finish" class="secondary big" type="button">Everyone is done</button>
-            </div>
-          </div>
-        </section>
-
-        <!-- Done -->
-        <section id="done-section" class="card celebrate stack" hidden>
-          <div class="emoji" aria-hidden="true">🏁</div>
-          <h1>Your group is finished</h1>
-          <p class="muted">Great work today. Wait for your teacher’s instructions.</p>
-        </section>
-      </main>
-    </div>
-
-    <dialog id="interest-dialog">
-      <form id="interest-form" method="dialog" class="stack">
-        <h2>What’s your group into?</h2>
-        <p class="muted">Fun Mode rewrites each problem around it. The numbers and the answer stay exactly the same.</p>
-        <div class="chip-row" id="interest-ideas"></div>
-        <div>
-          <label for="interest">Pick one or type your own</label>
-          <input id="interest" type="text" maxlength="40" spellcheck="true" />
         </div>
-        <div class="row">
-          <button type="submit" value="save">Turn on Fun Mode</button>
-          <button type="submit" value="cancel" class="secondary" formnovalidate>Cancel</button>
+        <div class="footer-bottom">
+          <span>© 2026 TwoTrack</span>
+          <span>Student? <a href="/join">Join your class</a></span>
         </div>
-      </form>
-    </dialog>
+      </div>
+    </footer>
   </body>
 </html>

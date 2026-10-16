@@ -15,7 +15,10 @@ async function fakeRewriter({ problem, interest }) {
   return `${interest} edition: ${problem}`;
 }
 
-const app = createApp({ rewriter: fakeRewriter, now: () => clock, log: quietLog });
+// These tests are about the classroom, so every request counts as a logged-in
+// teacher. Logging in itself is tested in auth.test.js.
+const loggedIn = { configured: true, currentUser: async () => ({ id: 't1', email: 'teacher@example.com', name: 'Teacher' }) };
+const app = createApp({ rewriter: fakeRewriter, now: () => clock, log: quietLog, auth: loggedIn });
 const server = http.createServer(app.handler);
 let base;
 
@@ -43,7 +46,7 @@ async function newClass() {
 }
 
 test('pages are served with a strict content security policy', async () => {
-  for (const page of ['/', '/teacher', '/board', '/display']) {
+  for (const page of ['/', '/join', '/signup', '/login', '/app', '/board', '/display']) {
     const res = await call('GET', page);
     assert.equal(res.status, 200, page);
     assert.match(res.headers.get('content-security-policy'), /script-src 'self'/);

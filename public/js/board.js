@@ -54,7 +54,7 @@ function showEnded(title, text) {
 
 function startBoard() {
   show('board');
-  $('#join-url').textContent = location.host;
+  $('#join-url').textContent = `${location.host}/join`;
   $('#phone-url').textContent = `${location.host}/board`;
   stopPolling?.();
   stopPolling = poll(refresh, 2000);

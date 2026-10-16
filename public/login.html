@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Log In · TwoTrack</title>
+    <link rel="stylesheet" href="/site.css" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script type="module" src="/js/auth.js"></script>
+  </head>
+  <body class="site">
+    <header class="site-bar">
+      <div class="site-wrap bar-inner">
+        <a class="logo" href="/">TwoTrack</a>
+        <nav class="bar-links" aria-label="Main">
+          <a href="/#pricing">Pricing</a>
+        </nav>
+      </div>
+    </header>
+    <main class="auth-main">
+      <form id="auth-form" class="auth-card form" data-endpoint="/auth/login" autocomplete="on">
+        <div>
+          <h1>Log in</h1>
+          <p class="muted">For teachers. Students join their class at <a href="/join">the join page</a> with a class code.</p>
+        </div>
+        <p id="auth-note" class="form-note" role="status" hidden></p>
+        <label>Email <input name="email" type="email" maxlength="200" required autocomplete="email" /></label>
+        <label>Password <input name="password" type="password" maxlength="72" required autocomplete="current-password" /></label>
+        <p id="auth-error" class="form-error" role="alert" hidden></p>
+        <button class="btn btn-primary btn-block" type="submit">Log in</button>
+        <p class="auth-switch">New to TwoTrack? <a href="/signup" data-keep-next>Try it free with one class</a></p>
+      </form>
+    </main>
+  </body>
+</html>

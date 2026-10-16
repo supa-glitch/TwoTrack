@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sign Up · TwoTrack</title>
+    <link rel="stylesheet" href="/site.css" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script type="module" src="/js/auth.js"></script>
+  </head>
+  <body class="site">
+    <header class="site-bar">
+      <div class="site-wrap bar-inner">
+        <a class="logo" href="/">TwoTrack</a>
+        <nav class="bar-links" aria-label="Main">
+          <a href="/login" class="bar-login" data-keep-next>Log in</a>
+        </nav>
+      </div>
+    </header>
+    <main class="auth-main">
+      <form id="auth-form" class="auth-card form" data-endpoint="/auth/signup" autocomplete="on">
+        <div>
+          <h1>Try TwoTrack free</h1>
+          <p class="muted">Free with one class. For teachers only: students join with a class code and never need an account.</p>
+        </div>
+        <label>Your name <input name="name" maxlength="80" required autocomplete="name" /></label>
+        <label>Email <input name="email" type="email" maxlength="200" required autocomplete="email" /></label>
+        <label
+          >Password <input name="password" type="password" minlength="8" maxlength="72" required autocomplete="new-password" />
+          <span class="hint">At least 8 characters.</span></label
+        >
+        <p id="auth-error" class="form-error" role="alert" hidden></p>
+        <p id="auth-note" class="form-note" role="status" hidden></p>
+        <button class="btn btn-primary btn-block" type="submit">Create account</button>
+        <p class="auth-switch">Already have an account? <a href="/login" data-keep-next>Log in</a></p>
+      </form>
+    </main>
+  </body>
+</html>
