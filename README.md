@@ -50,7 +50,9 @@ The class computers need to reach it, so for the real lesson run it on any host 
 
 A demo is live at **https://twotrack-ten.vercel.app**.
 
-`vercel.json` serves `public/` as static pages and sends every `/api/...` request to one function, `api/index.js`, which runs the same app as `npm start`.
+`vercel.json` serves `public/` as static pages and sends every `/api/...` request to one function, `api/index.js`, which runs the same app as `npm start`. The function may run for up to 60 seconds, since a Fun Mode rewrite waits for Claude; each Claude call gives up after 20 seconds.
+
+If Fun Mode fails, the Fun Mode box on the group's screen says why under "Why:", and so does a notice on the teacher's board (for example `HTTP 401: invalid x-api-key`, or `HTTP 400: Your credit balance is too low`).
 
 - **Fine for trying it out, not yet for a real lesson.** Classes live in the function's memory, and Vercel doesn't keep one copy of the function running. It shuts down idle copies, starts fresh ones on every deploy, and can run several at once when busy. When that happens, a class vanishes ("No class with that code"). Before the real test, either move class state into a shared store (Upstash Redis from the Vercel Marketplace has a free tier), or run `npm start` on an always-on host.
 - **Fun Mode works on Vercel with no setup.** It calls Claude through [Vercel AI Gateway](https://vercel.com/docs/ai-gateway), signed in with the deployment's own OIDC token, and the cost comes out of the Vercel account's AI Gateway credits. Each rewrite is a fraction of a cent. To call Anthropic directly instead (the demo does), add `ANTHROPIC_API_KEY` under Settings → Environment Variables and redeploy. That key takes priority over the gateway.

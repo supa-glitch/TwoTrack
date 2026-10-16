@@ -220,10 +220,10 @@ test('Fun Mode rewrites keep the teacher’s numbers, or fall back to the origin
   res = await call('GET', `/api/classes/${code}/group/fun-text`, { group: t });
   assert.deepEqual([res.body.ok, res.body.reason], [false, 'numbers']);
 
-  // When Claude can't be reached, the board says why; the group only sees that it failed.
+  // When Claude can't be reached, the group screen and the board both say why.
   await call('POST', `/api/classes/${code}/group/interest`, { group: t, body: { interest: 'broken' } });
   res = await call('GET', `/api/classes/${code}/group/fun-text`, { group: t });
-  assert.deepEqual([res.body.ok, res.body.reason, res.body.detail], [false, 'unavailable', undefined]);
+  assert.deepEqual([res.body.ok, res.body.reason, res.body.detail], [false, 'unavailable', 'HTTP 401: invalid x-api-key']);
   let board = (await call('GET', `/api/classes/${code}/board`, { teacher: teacherKey })).body;
   assert.equal(board.funMode.error.detail, 'HTTP 401: invalid x-api-key');
   // The next rewrite that reaches Claude clears it.

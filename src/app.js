@@ -336,8 +336,9 @@ export function createApp({ rewriter = null, funModeLabel = null, now = () => Da
     const cls = getClass(code);
     const group = asGroup(req, cls);
     const problem = currentProblem(cls, group);
-    // The error detail is for the teacher's board, not the students.
-    const { detail, ...result } = await funText(cls, group);
+    // detail says why a rewrite failed ("HTTP 401: invalid x-api-key"). It
+    // holds nothing secret, and it's what the person testing is looking at.
+    const result = await funText(cls, group);
     // Say which problem this is for, in case the group moved on meanwhile.
     return { ...result, activityIndex: group.activityIndex, problemIndex: group.problemIndex, label: problem?.label };
   });

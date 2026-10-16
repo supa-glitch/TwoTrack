@@ -9,6 +9,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 
 export const DEFAULT_MODEL = 'claude-opus-5-5';
+// Two attempts at 20 seconds each fit inside the function's 60-second limit.
+const CALL_LIMITS = { timeout: 20_000, maxRetries: 0 };
 export const MAX_INTEREST_LENGTH = 40;
 
 const SYSTEM_PROMPT = `You rewrite math worksheet problems for a group of middle and high school students so the problem is set in a theme they chose. A teacher wrote the original problem and has the answer key, so the math must not change.
@@ -78,9 +80,10 @@ export function createClaudeRewriter({ model = process.env.FUN_MODE_MODEL || DEF
   // from then on.
   let plain = false;
   return async ({ problem, interest }) => {
-    // Short timeout and one retry: a group is waiting at the screen. With no
-    // apiKey given, the SDK reads ANTHROPIC_API_KEY itself.
-    anthropic ||= new Anthropic({ apiKey, timeout: 30_000, maxRetries: 1 });
+    // A group is waiting at the screen, and Vercel stops the function after
+    // 60 seconds (vercel.json), so each call gets 20 seconds and no automatic
+    // retry. With no apiKey given, the SDK reads ANTHROPIC_API_KEY itself.
+    anthropic ||= new Anthropic({ apiKey, ...CALL_LIMITS });
     const request = {
       model,
       max_tokens: 4000,
@@ -128,7 +131,7 @@ const GATEWAY_ATTEMPTS = [
 export function createGatewayRewriter({ getToken, model, createClient } = {}) {
   const attempts = model ? [{ model, effort: 'low' }, { model }] : GATEWAY_ATTEMPTS;
   const makeClient =
-    createClient || ((apiKey) => new Anthropic({ apiKey, baseURL: GATEWAY_URL, timeout: 30_000, maxRetries: 1 }));
+    createClient || ((apiKey) => new Anthropic({ apiKey, baseURL: GATEWAY_URL, ...CALL_LIMITS }));
   let first = 0;
   return async ({ problem, interest }) => {
     const token = await getToken();

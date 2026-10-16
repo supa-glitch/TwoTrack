@@ -117,7 +117,7 @@ function render(next) {
   const funError = board.funMode?.error;
   $('#fun-error').hidden = !funError;
   $('#fun-error').textContent = funError
-    ? `Fun Mode isn’t reaching Claude${board.funMode.label ? ` (${board.funMode.label})` : ''}: ${funError.detail || 'unknown error'}. Groups see their problems as written.`
+    ? `Fun Mode isn’t reaching Claude${board.funMode.label ? ` (${board.funMode.label})` : ''}: ${(funError.detail || 'unknown error').replace(/\.$/, '')}. Groups see their problems as written.`
     : '';
 
   renderGroups();

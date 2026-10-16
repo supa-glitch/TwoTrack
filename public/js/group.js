@@ -221,29 +221,55 @@ function renderFun(newProblem) {
   const key = `${state.activityIndex}:${state.problemIndex}:${fun.interest.toLowerCase()}`;
   const known = funTexts.get(key);
   if (known) {
-    $('#fun-text').textContent = known;
+    $('#fun-text').dataset.key = key;
+    showFun(key, known);
     return;
   }
   if (newProblem || $('#fun-text').dataset.key !== key) {
     $('#fun-text').dataset.key = key;
-    $('#fun-text').textContent = `Rewriting this one around ${fun.interest}…`;
+    showFun(key, `Rewriting this one around ${fun.interest}…`);
     loadFunText(key);
   }
 }
 
-async function loadFunText(key) {
+const FUN_FAILED = 'Fun Mode isn’t working right now, so here’s the problem as written.';
+
+function showFun(key, text, why = '') {
+  if ($('#fun-text').dataset.key !== key) return;
+  $('#fun-text').textContent = text;
+  $('#fun-why').textContent = why ? `Why: ${why}` : '';
+  $('#fun-why').hidden = !why;
+}
+
+/** Why the request itself failed, before the server could say. */
+function requestProblem(err) {
+  if (err.status === 504 || err.status === 0) return `the server took too long or couldn’t be reached (${err.status ? `HTTP ${err.status}` : 'no connection'})`;
+  if (err.status === 404) return 'this copy of the server doesn’t know the class (HTTP 404)';
+  return err.status ? `HTTP ${err.status}: ${err.message}` : err.message;
+}
+
+async function loadFunText(key, attempt = 1) {
+  let result;
   try {
-    const result = await api('GET', `/api/classes/${session.code}/group/fun-text`, { groupToken: session.token });
-    const text = result.ok
-      ? result.text
-      : result.reason === 'numbers'
-        ? 'Fun Mode couldn’t rewrite this one without changing the math, so here it is as written.'
-        : 'Fun Mode isn’t working right now, so here’s the problem as written.';
-    const resultKey = `${result.activityIndex}:${result.problemIndex}:${state.funMode.interest.toLowerCase()}`;
-    if (result.ok) funTexts.set(resultKey, text);
-    if ($('#fun-text').dataset.key === key && resultKey === key) $('#fun-text').textContent = text;
+    result = await api('GET', `/api/classes/${session.code}/group/fun-text`, { groupToken: session.token });
   } catch (err) {
-    if ($('#fun-text').dataset.key === key) $('#fun-text').textContent = 'Fun Mode isn’t working right now, so here’s the problem as written.';
+    // The request failed before the server answered: try once more.
+    if (attempt === 1 && err.status !== 403) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      return loadFunText(key, 2);
+    }
+    showFun(key, FUN_FAILED, requestProblem(err));
+    return;
+  }
+  const resultKey = `${result.activityIndex}:${result.problemIndex}:${state.funMode.interest.toLowerCase()}`;
+  if (resultKey !== key) return;
+  if (result.ok) {
+    funTexts.set(resultKey, result.text);
+    showFun(key, result.text);
+  } else if (result.reason === 'numbers') {
+    showFun(key, 'Fun Mode couldn’t rewrite this one without changing the math, so here it is as written.');
+  } else {
+    showFun(key, FUN_FAILED, result.detail || result.reason);
   }
 }
 
