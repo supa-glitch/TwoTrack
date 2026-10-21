@@ -1,7 +1,7 @@
 import http from 'node:http';
 import { createConfiguredApp } from './src/configure.js';
 
-const { app, fun, accounts } = createConfiguredApp();
+const { app, fun, accounts, demo } = createConfiguredApp();
 const port = Number(process.env.PORT) || 3000;
 
 const server = http.createServer(app.handler);
@@ -12,7 +12,9 @@ server.listen(port, () => {
   console.log(
     accounts
       ? 'Teacher accounts are on (Supabase).'
-      : 'Teacher accounts are off, so nobody can log in. Set SUPABASE_URL and SUPABASE_ANON_KEY.',
+      : demo
+        ? 'Demo mode: anyone can open the app without logging in. Connect Supabase to turn logins on.'
+        : 'Teacher accounts are off, so nobody can log in. Set SUPABASE_URL and SUPABASE_ANON_KEY.',
   );
 });
 

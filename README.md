@@ -94,6 +94,7 @@ ANTHROPIC_API_KEY=sk-ant-... npm start
 |---|---|
 | `PORT` | Port to listen on (default 3000). |
 | `SUPABASE_URL`, `SUPABASE_ANON_KEY` | Teacher accounts and the contact form (see **Teacher accounts**). |
+| `DEMO_MODE` | `on` lets anyone into `/app` and `/board` without logging in (the Log in and Sign up pages go straight to the app). It only works while Supabase isn't connected: once `SUPABASE_URL` and `SUPABASE_ANON_KEY` are set, logins are required again. |
 | `ANTHROPIC_API_KEY` | Turns on Fun Mode, calling Claude directly. |
 | `AI_GATEWAY_API_KEY` | Turns on Fun Mode through Vercel AI Gateway. Not needed on a Vercel deployment, which signs in on its own. An Anthropic key (`sk-ant-...`) saved here is used as `ANTHROPIC_API_KEY` instead. |
 | `FUN_MODE` | `off` to turn Fun Mode off even with a key; `on` to use other Claude credentials (for example an `ant auth login` profile). |

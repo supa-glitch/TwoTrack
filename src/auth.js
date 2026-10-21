@@ -145,3 +145,15 @@ export const authNotSetUp = {
     return false;
   },
 };
+
+/**
+ * DEMO_MODE=on while Supabase isn't connected: everyone is let into the app
+ * as the same demo teacher, so the site can be tried before logins exist.
+ */
+export const openDemo = {
+  ...authNotSetUp,
+  demo: true,
+  async currentUser() {
+    return { id: 'demo', email: null, name: 'Demo teacher' };
+  },
+};

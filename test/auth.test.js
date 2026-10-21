@@ -4,7 +4,7 @@ import http from 'node:http';
 import { createApp } from '../src/app.js';
 import { createSupabaseAuth, supabaseSettings } from '../src/auth.js';
 import { createContactBox } from '../src/contact.js';
-import { restoreApiPath } from '../src/configure.js';
+import { createConfiguredApp, restoreApiPath } from '../src/configure.js';
 import { SAMPLE_WORKSHEET, SAMPLE_EXIT_TICKET } from '../public/lib/sample.js';
 import { startMockSupabase } from './helpers/mock-supabase.js';
 
@@ -285,4 +285,38 @@ test('Vercel rewrites for pages map back to the real path', () => {
   assert.equal(restoreApiPath('/api/index?__page=auth%2Fcallback&code=abc'), '/auth/callback?code=abc');
   assert.equal(restoreApiPath('/api/index?__page=auth/login'), '/auth/login');
   assert.equal(restoreApiPath('/api/index?__path=health'), '/api/health');
+});
+
+test('DEMO_MODE=on opens the app without a login, until Supabase is connected', async () => {
+  const startClass = (base) =>
+    fetch(base + '/api/classes', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ worksheet: SAMPLE_WORKSHEET, exitTicket: SAMPLE_EXIT_TICKET, groupCount: 2 }),
+    });
+
+  const demo = createConfiguredApp({ DEMO_MODE: 'on', FUN_MODE: 'off' });
+  assert.equal(demo.demo, true);
+  const site = await serve(demo.app);
+  try {
+    assert.deepEqual(await (await fetch(site.base + '/api/health')).json(), { ok: true, funMode: false, accounts: false, demo: true });
+    for (const page of ['/app', '/board']) assert.equal((await fetch(site.base + page, { redirect: 'manual' })).status, 200, page);
+    assert.equal((await startClass(site.base)).status, 200);
+  } finally {
+    site.close();
+  }
+
+  // Off by default, and connecting Supabase turns logins back on even if DEMO_MODE is still set.
+  for (const env of [{ FUN_MODE: 'off' }, { DEMO_MODE: 'on', FUN_MODE: 'off', SUPABASE_URL: 'http://127.0.0.1:9', SUPABASE_ANON_KEY: 'k' }]) {
+    const locked = createConfiguredApp(env);
+    assert.equal(locked.demo, false);
+    const lockedSite = await serve(locked.app);
+    try {
+      assert.equal((await fetch(lockedSite.base + '/app', { redirect: 'manual' })).headers.get('location'), '/login?next=%2Fapp');
+      assert.equal((await startClass(lockedSite.base)).status, 401);
+      assert.equal((await (await fetch(lockedSite.base + '/api/health')).json()).demo, false);
+    } finally {
+      lockedSite.close();
+    }
+  }
 });

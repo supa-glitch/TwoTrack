@@ -3,7 +3,7 @@
 
 import { getVercelOidcToken } from '@vercel/oidc';
 import { createApp } from './app.js';
-import { authNotSetUp, createSupabaseAuth, supabaseSettings } from './auth.js';
+import { authNotSetUp, createSupabaseAuth, openDemo, supabaseSettings } from './auth.js';
 import { createContactBox } from './contact.js';
 import { createClaudeRewriter, createGatewayRewriter, DEFAULT_MODEL } from './funmode.js';
 
@@ -58,11 +58,13 @@ export function createConfiguredApp(env = process.env) {
   if (fun.provider === 'anthropic') rewriter = createClaudeRewriter({ model: fun.model, apiKey: fun.apiKey });
   if (fun.provider === 'gateway') rewriter = createGatewayRewriter({ getToken: () => gatewayToken(env), model: fun.model || undefined });
   // Teacher accounts and the contact form both use the Supabase project.
+  // DEMO_MODE=on opens the app to everyone, but only until Supabase is connected.
   const supabase = supabaseSettings(env);
-  const auth = supabase ? createSupabaseAuth(supabase) : authNotSetUp;
+  const demo = !supabase && ['on', 'true', '1'].includes(String(env.DEMO_MODE || '').trim().toLowerCase());
+  const auth = supabase ? createSupabaseAuth(supabase) : demo ? openDemo : authNotSetUp;
   const contact = createContactBox(supabase);
   const app = createApp({ rewriter, funModeLabel: PROVIDER_LABELS[fun.provider] || null, auth, contact });
-  return { app, fun, accounts: Boolean(supabase) };
+  return { app, fun, accounts: Boolean(supabase), demo };
 }
 
 /**

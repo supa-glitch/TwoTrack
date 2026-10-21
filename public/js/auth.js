@@ -22,6 +22,13 @@ function note(text) {
 if (params.get('confirmed')) note('Your email is confirmed. Log in to continue.');
 else if (next) note('Log in to open your classes.');
 
+// In demo mode nobody needs an account, so skip straight to the app.
+api('GET', '/api/health')
+  .then((health) => {
+    if (health.demo) location.replace(next.startsWith('/') && !next.startsWith('//') ? next : '/app');
+  })
+  .catch(() => {});
+
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   const button = form.querySelector('button[type=submit]');

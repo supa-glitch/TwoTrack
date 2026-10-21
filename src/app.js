@@ -234,7 +234,7 @@ export function createApp({
   const routes = [];
   const route = (method, pattern, handler) => routes.push({ method, pattern, handler });
 
-  route('GET', /^\/api\/health$/, () => ({ ok: true, funMode: funModeAvailable, accounts: auth.configured }));
+  route('GET', /^\/api\/health$/, () => ({ ok: true, funMode: funModeAvailable, accounts: auth.configured, demo: Boolean(auth.demo) }));
 
   route('POST', /^\/api\/contact$/, async (req) => {
     const body = await readJson(req);
