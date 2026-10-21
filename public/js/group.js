@@ -2,9 +2,10 @@
 // time, Fun Mode, then the exit ticket with students taking turns.
 
 import { $, api, el, poll, store, ApiError } from './common.js';
+import { CHEERS, NUDGES, confetti, pick, replay } from './cheer.js';
 
 const SESSION_KEY = 'twotrack.group';
-const INTEREST_IDEAS = ['basketball', 'soccer', 'video games', 'music', 'dance', 'cooking', 'anime', 'skateboarding'];
+const INTEREST_IDEAS = { basketball: '🏀', soccer: '⚽', 'video games': '🎮', music: '🎵', dance: '💃', cooking: '🍳', anime: '🌸', skateboarding: '🛹' };
 
 let session = store.get(SESSION_KEY); // { code, token }
 let state = null;
@@ -16,6 +17,9 @@ let pausedForCelebration = false;
 let exitStep = 'intro'; // intro | answering | thanks
 let exitName = '';
 const funTexts = new Map();
+let streak = 0; // right answers in a row, for the 🔥 badge
+let stepsShown = null; // activity statuses the chips show
+let dotsShown = null; // { activityIndex, problemIndex, count } the dots show
 
 const views = {
   join: $('#join-view'),
@@ -40,6 +44,7 @@ function showJoin(message) {
   if (code && !$('#join-code').value) $('#join-code').value = code.toUpperCase();
   $('#join-error').hidden = !message;
   $('#join-error').textContent = message || '';
+  if (message) replay($('#join-error'), 'shake');
   ($('#join-code').value ? $('#join-name') : $('#join-code')).focus();
 }
 
@@ -57,6 +62,7 @@ $('#join-form').addEventListener('submit', async (event) => {
   } catch (err) {
     $('#join-error').hidden = false;
     $('#join-error').textContent = err.message;
+    replay($('#join-error'), 'shake');
   } finally {
     button.disabled = false;
   }
@@ -102,16 +108,19 @@ function render(next) {
   state = next;
   $('#group-name').textContent = state.groupName;
   $('#class-title').textContent = state.title;
+  showAvatar(state.groupName);
 
   // Finishing an activity gets a moment of its own before the next one.
   if (previous && seenActivity !== null && previous.stage === 'activities' && state.activityIndex > seenActivity) {
     const finished = state.activities[seenActivity];
     const nextActivity = state.stage === 'activities' ? state.activities[state.activityIndex] : null;
     $('#activity-done-title').textContent = `${finished.title}: done!`;
-    $('#activity-done-next').textContent = nextActivity ? `Unlocked: ${nextActivity.title}` : 'That was the last activity. Next up: the exit ticket.';
+    $('#activity-done-next').textContent = nextActivity ? `🔓 Unlocked: ${nextActivity.title}` : 'That was the last activity. Next up: the exit ticket.';
     $('#activity-continue').textContent = nextActivity ? `Start ${nextActivity.title}` : 'Go to the exit ticket';
     pausedForCelebration = true;
+    confetti($('#activity-done-title'), 110);
   }
+  if (previous && previous.stage !== 'done' && state.stage === 'done') confetti($('#done-section h1'), 140);
   seenActivity = state.activityIndex;
 
   $('#activity-section').hidden = state.stage !== 'activities' && !pausedForCelebration;
@@ -122,13 +131,32 @@ function render(next) {
   if (state.stage === 'exit' && !pausedForCelebration) renderExit();
 }
 
+function showAvatar(name) {
+  const letter = [...name.trim()][0]?.toUpperCase() || '?';
+  const avatar = $('#group-avatar');
+  if (avatar.textContent === letter) return;
+  const color = [...name].reduce((sum, ch) => sum + ch.codePointAt(0), 0) % 6;
+  avatar.textContent = letter;
+  avatar.className = `avatar c${color}`;
+}
+
 function renderActivities(previous) {
-  const steps = $('#steps');
-  steps.replaceChildren(
-    ...state.activities.map((a, i) =>
-      el('li', { class: a.status, 'aria-current': a.status === 'current' ? 'step' : null }, `${a.status === 'done' ? '✓ ' : ''}${i + 1}. ${a.title}`),
-    ),
-  );
+  // Rebuilt only when something changed, so their animations don't restart on every poll.
+  const statuses = state.activities.map((a) => `${a.status}:${a.title}`);
+  if (statuses.join('\n') !== stepsShown?.join('\n')) {
+    const before = stepsShown;
+    stepsShown = statuses;
+    $('#steps').replaceChildren(
+      ...state.activities.map((a, i) => {
+        const justDone = a.status === 'done' && before && before[i] && !before[i].startsWith('done:');
+        return el(
+          'li',
+          { class: `${a.status}${justDone ? ' fresh' : ''}`, 'aria-current': a.status === 'current' ? 'step' : null },
+          `${a.status === 'done' ? '✓ ' : ''}${i + 1}. ${a.title}`,
+        );
+      }),
+    );
+  }
 
   $('#activity-done').hidden = !pausedForCelebration;
   $('#problem-card').hidden = pausedForCelebration;
@@ -137,17 +165,31 @@ function renderActivities(previous) {
   $('#activity-title').textContent = state.activity.title;
   $('#activity-directions').textContent = state.activity.directions || '';
   $('#activity-directions').hidden = !state.activity.directions;
-  $('#problem-count').textContent = `Problem ${state.problemIndex + 1} of ${state.activity.problemCount}`;
-  $('#dots').replaceChildren(
-    ...Array.from({ length: state.activity.problemCount }, (_, i) =>
-      el('span', { class: i < state.problemIndex ? 'done' : i === state.problemIndex ? 'current' : '' }),
-    ),
-  );
+  const count = state.activity.problemCount;
+  $('#problem-count').textContent = `Problem ${state.problemIndex + 1} of ${count}`;
+  const dots = { activityIndex: state.activityIndex, problemIndex: state.problemIndex, count };
+  if (JSON.stringify(dots) !== JSON.stringify(dotsShown)) {
+    const advanced = dotsShown?.activityIndex === dots.activityIndex && dotsShown.problemIndex === dots.problemIndex - 1;
+    dotsShown = dots;
+    $('#dots').replaceChildren(
+      ...Array.from({ length: count }, (_, i) =>
+        el('span', {
+          class: i < state.problemIndex ? `done${advanced && i === state.problemIndex - 1 ? ' fresh' : ''}` : i === state.problemIndex ? 'current' : '',
+        }),
+      ),
+    );
+  }
 
   const key = `${state.activityIndex}:${state.problemIndex}`;
   const newProblem = key !== problemKey;
   if (newProblem) {
     problemKey = key;
+    const last = state.problemIndex === count - 1 && count > 1;
+    const halfway = count >= 4 && state.problemIndex === Math.floor(count / 2);
+    $('#problem-cheer').textContent = last ? 'Last one! 🏁' : halfway ? 'Halfway there! 💪' : '';
+    $('#problem-cheer').hidden = !last && !halfway;
+    replay($('#problem-text'), 'enter');
+    replay($('#fun-story'), 'enter');
     $('#problem-text').textContent = state.problem.text;
     $('#fun-original').textContent = state.problem.text;
     $('#answer').value = '';
@@ -160,10 +202,11 @@ function renderActivities(previous) {
   renderFun(newProblem);
 }
 
-function setFeedback(text, kind) {
+function setFeedback(text, kind, badge = '') {
   const node = $('#feedback');
-  node.textContent = text;
+  node.replaceChildren(...(text ? [el('span', {}, text)] : []), ...(badge ? [el('span', { class: 'streak' }, badge)] : []));
   node.className = `feedback ${kind}`;
+  if (text) replay(node, 'bump');
 }
 
 $('#activity-continue').addEventListener('click', () => {
@@ -183,13 +226,18 @@ $('#answer-form').addEventListener('submit', async (event) => {
       body: { activityIndex: state.activityIndex, problemIndex: state.problemIndex, answer },
     });
     if (result.result === 'correct') {
-      setFeedback('✓ Correct!', 'correct');
+      streak += 1;
+      setFeedback(`✓ ${pick(CHEERS)}`, 'correct', streak >= 3 ? `🔥 ${streak} in a row!` : '');
+      replay($('#problem-card'), 'glow');
+      confetti($('#check'), streak >= 3 ? 60 : 36);
       // Let them see it before the next problem appears.
       await new Promise((resolve) => setTimeout(resolve, 900));
       setFeedback('', '');
     } else if (result.result === 'wrong') {
+      streak = 0;
       const tries = result.state.triesOnProblem;
-      setFeedback(`✗ Not quite. Try again.${tries > 1 ? ` (${tries} tries)` : ''}`, 'wrong');
+      setFeedback(`${pick(NUDGES)}${tries > 1 ? ` (${tries} tries)` : ''}`, 'wrong');
+      replay($('#answer'), 'shake');
       $('#answer').select();
     }
     busy = false;
@@ -227,15 +275,17 @@ function renderFun(newProblem) {
   }
   if (newProblem || $('#fun-text').dataset.key !== key) {
     $('#fun-text').dataset.key = key;
-    showFun(key, `Rewriting this one around ${fun.interest}…`);
+    showFun(key, `Rewriting this one around ${fun.interest}…`, '', true);
     loadFunText(key);
   }
 }
 
 const FUN_FAILED = 'Fun Mode isn’t working right now, so here’s the problem as written.';
 
-function showFun(key, text, why = '') {
+function showFun(key, text, why = '', loading = false) {
   if ($('#fun-text').dataset.key !== key) return;
+  $('#fun-story').classList.toggle('loading', loading);
+  if (!loading && $('#fun-text').textContent !== text) replay($('#fun-text'), 'appear');
   $('#fun-text').textContent = text;
   $('#fun-why').textContent = why ? `Why: ${why}` : '';
   $('#fun-why').hidden = !why;
@@ -287,11 +337,16 @@ $('#change-interest').addEventListener('click', openInterest);
 function openInterest() {
   $('#interest').value = state.funMode.interest || '';
   $('#interest-dialog').returnValue = '';
+  const markChosen = () => {
+    for (const chip of $('#interest-ideas').children) chip.setAttribute('aria-pressed', String(chip.dataset.idea === $('#interest').value.trim().toLowerCase()));
+  };
   $('#interest-ideas').replaceChildren(
-    ...INTEREST_IDEAS.map((idea) =>
-      el('button', { type: 'button', onclick: () => ($('#interest').value = idea) }, idea),
+    ...Object.entries(INTEREST_IDEAS).map(([idea, emoji]) =>
+      el('button', { type: 'button', 'data-idea': idea, 'aria-pressed': 'false', onclick: () => (($('#interest').value = idea), markChosen()) }, `${emoji} ${idea}`),
     ),
   );
+  $('#interest').oninput = markChosen;
+  markChosen();
   $('#interest-dialog').showModal();
   $('#interest').focus();
 }
@@ -351,13 +406,14 @@ $('#exit-form').addEventListener('submit', async (event) => {
   busy = true;
   try {
     const result = await api('POST', `/api/classes/${session.code}/group/exit`, { groupToken: session.token, body: { name: exitName, answers } });
-    $('#exit-thanks-title').textContent = `Thanks, ${result.name}!`;
+    $('#exit-thanks-title').textContent = `Thanks, ${result.name}! 🌟`;
     // Clear their answers so the next person can't see them.
     $('#exit-problems').replaceChildren();
     $('#exit-name').value = '';
     exitStep = 'thanks';
     busy = false;
     render(result.state);
+    confetti($('#exit-thanks-title'), 60);
   } catch (err) {
     $('#exit-error').hidden = false;
     $('#exit-error').textContent = err.message;

@@ -55,6 +55,8 @@ const TYPES = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2',
+  '.txt': 'text/plain; charset=utf-8',
 };
 const MAX_BODY = 256 * 1024;
 const IDLE_LIMIT = 12 * 60 * 60_000; // a class nobody has touched for 12 hours

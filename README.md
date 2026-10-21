@@ -264,6 +264,8 @@ public/lib/worksheet.js  worksheet parser (used by the setup page preview and th
 public/index.html, site.css, js/landing.js   landing page
 public/signup.html, login.html, js/auth.js   teacher sign-up and log-in
 public/join.html, display.html, js/          student page, smartboard display
+public/student.css, js/cheer.js              the student page's colors, animations and confetti
+public/fonts/                                Fredoka and Nunito Sans (SIL Open Font License), served from the site
 pages/app.html, pages/board.html             teacher pages (served only after the login check)
 test/helpers/mock-supabase.js                local stand-in for Supabase, for tests
 ```
